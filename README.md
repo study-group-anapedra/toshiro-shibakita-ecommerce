@@ -51,31 +51,7 @@ Cada domínio de negócio roda em seu **próprio repositório**, com pipeline e 
 
 ---
 
-# 📦 Primeira Feature – *Catálogo de Produtos*
-
-O primeiro microsserviço implementado é o **catalog-service**.
-
-### Funcionalidades
-- Listagem de produtos
-- Busca e filtros
-- Imagens (S3 + CloudFront)
-- Consulta de estoque (somente leitura / projeção)
-- Cache Redis (ElastiCache)
-
 ### Endpoints (exemplo)
-
----
-
-# 🧱 Padrões e Boas Práticas
-
-- Arquitetura Hexagonal (Ports & Adapters)
-- SOLID + Clean Code
-- DTOs → Controllers limpos
-- Services → Regras de negócio
-- Repositories → Acesso ao banco
-- Mapeamento com MapStruct
-- Versionamento SQL com Flyway
-- Exception Handler global
 
 ---
 
@@ -89,30 +65,6 @@ O primeiro microsserviço implementado é o **catalog-service**.
 
 ---
 
-# 🧪 Qualidade de Software (TDD)
-
-### Testes implementados:
-- Unitários (JUnit 5 + Mockito)
-- Integração (Testcontainers PostgreSQL)
-- Repositórios
-- Testes de contrato HTTP
-- Linters: Checkstyle, SpotBugs
-- SonarCloud no pipeline
-- Cobertura alvo: **80%+**
-
----
-
-# 🚀 CI/CD — GitHub Actions
-
-Pipeline moderno com gatilhos:
-
-- **Pull Request → branches main/dev/stage**
-- Build e testes
-- Análise de qualidade
-- Build Docker
-- Push para registry (ECR)
-- Deploy automático (Infra + Cluster)
-
 ### Fluxo completo
 
 ---
@@ -122,76 +74,18 @@ Pipeline moderno com gatilhos:
 A infraestrutura é organizada em **stacks independentes** para reduzir *blast radius* e permitir evolução granular.
 
 
----
-
-# 🔄 Integrações (ERP/PDV)
-
-Eventos principais:
-- `inventory.updated`
-- `price.changed`
-- `product.created`
-- `product.disabled`
-
 Sincronização via SQS/SNS/EventBridge (event-driven).
 
 ---
 
-# 🔧 Como Rodar Localmente
-
-### Requisitos
-- Java 21
-- Maven
-- Docker
-- Docker Compose
-
-### Comandos
-
----
-
-# 🧭 Roadmap
-
-### MVP – Catálogo (FASE ATUAL)
-- Microsserviço catálogo
-- Infra dev via Terraform
-- CI completo
-- Deploy no cluster
-- Observabilidade mínima viável
-
-### Próximos módulos
-- Carrinho
-- Checkout
-- Pagamentos
-- Entregas
-- Fidelidade
-- Aplicativo mobile
-
----
 
 # 🛡️ Configurações de Segurança e Qualidade no GitHub
 
-## 🔒 Proteção da branch `main`
 
-No GitHub:
-Repositorio → Settings → Branches → Branch Protection Rules
-
-Configure:
-- ✔ **Require pull request before merging**
-- ✔ **Require code review approvals (min 1 ou 2)**
-- ✔ **Require status checks to pass before merging**
-  - build
-  - test
-  - sonarcloud
-  - lint
-- ✔ **Require signed commits (opcional)**
-- ✔ **Require branches to be up to date**
-- ✔ **Do not allow bypass**
-- ✔ **Restrict who can push to main**
-
----
 
 ### Estrutura da Infra
 
-
+```text
 
 micro-infra-global/
 │
@@ -278,46 +172,8 @@ micro-infra-global/
     └── prod.tfvars
 
 
-## 🧑‍💻 Code Review (Best Practices)
 
-Checklist para revisores:
-- [ ] Código limpo, sem duplicação
-- [ ] Testes cobrindo nova lógica
-- [ ] Validações e exceções adequadas
-- [ ] Segurança (inputs, dados sensíveis)
-- [ ] Logs essenciais
-- [ ] Não incluir secrets no código
-- [ ] Terraform formatado e validado
-- [ ] Dockerfile otimizado
-- [ ] Nome de PR claro e descritivo
 
----
-
-## 👮 Políticas de Permissão do Repositório
-
-Estrutura recomendada:
-
-### Owners
-- Ana Lúcia Nunes Lopes de Santa
-- 1 líder técnico (fictício)
-
-Permissões:
-- **Admin**: somente Owners
-
-### Developers
-- Permissão: **Write**
-- Não podem fazer push para `main`
-
-### QA
-- Permissão: **Triage ou Read**
-- Podem revisar PRs
-
-### Bots
-- **GitHub Actions** → Permissão: `write` em workflows
-
-Arquivo de permissão (padrão empresa):
-
----
 
 # 📜 Licença
 MIT
