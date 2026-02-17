@@ -3,10 +3,11 @@
 
 ---
 <p align="center">
-  <img src="./artifacts/arquiteturas/micro-infra-global-aws-architecture.png" 
+  <img src="./artifacts/micro-infra-global-aws-architecture.png" 
        alt="Micro Infra Global Architecture" 
        width="100%">
 </p>
+
 
 ---
 
@@ -89,87 +90,158 @@ Sincronização via SQS/SNS/EventBridge (event-driven).
 
 micro-infra-global/
 │
-├── 00-bootstrap/                         # cria o backend do Terraform (state remoto)
-│   ├── main.tf                           # S3 (tfstate) + DynamoDB (lock)
-│   ├── variables.tf
-│   ├── outputs.tf
-│   └── versions.tf
-│
-├── 01-networking/                        # rede base (3 camadas)
-│   ├── main.tf                           # VPC + Subnets (public/app/data) + IGW
-│   ├── nat.tf                            # NAT Gateway(s)
-│   ├── routes.tf                          # route tables + associations
-│   ├── variables.tf
-│   ├── outputs.tf                         # vpc_id, subnet_ids, azs
-│   ├── versions.tf
-│   └── backend.tf
-│
-├── 02-security/                          # IAM + Security Groups + KMS base (se quiser)
-│   ├── main.tf                            # “master” do passo
-│   ├── iam.tf                             # roles/policies (EKS, nodes, etc.)
-│   ├── security_groups.tf                 # SG: alb/app/db/cache
-│   ├── data.tf                            # remote_state do 01-networking
-│   ├── variables.tf
-│   ├── outputs.tf                         # sg ids, role arns
-│   ├── versions.tf
-│   └── backend.tf
-│
-├── 03-data/                              # DATA TIER (multi-db)
-│   ├── main.tf                            # “master” do passo
-│   ├── rds/                               # Postgres (um cluster/instância + databases por domínio)
-│   │   ├── main.tf                         # aws_db_instance / parameter groups / option groups
+├── stacks/                                  # stacks root (cada passo = 1 state isolado)
+│   │
+│   ├── 00-bootstrap/
+│   │   ├── versions.tf
+│   │   ├── provider.tf
 │   │   ├── variables.tf
-│   │   └── outputs.tf                      # endpoint, port, arn
-│   ├── dynamodb/                          # DynamoDB (ex: Catalog em Go)
-│   │   ├── main.tf                         # tables + autoscaling (opcional)
+│   │   ├── outputs.tf
+│   │   └── main.tf                           # cria S3 tfstate + DynamoDB lock
+│   │
+│   ├── 01-networking/
+│   │   ├── versions.tf
+│   │   ├── backend.tf
+│   │   ├── provider.tf
+│   │   ├── locals.tf
 │   │   ├── variables.tf
-│   │   └── outputs.tf
-│   ├── elasticache/                       # Redis (cache/sessão)
-│   │   ├── main.tf
+│   │   ├── outputs.tf
+│   │   ├── main.tf                           # chama o módulo networking
+│   │   └── data.tf                           # (opcional) leitura de info externa
+│   │
+│   ├── 02-security/
+│   │   ├── versions.tf
+│   │   ├── backend.tf
+│   │   ├── provider.tf
+│   │   ├── locals.tf
 │   │   ├── variables.tf
-│   │   └── outputs.tf
-│   ├── subnet_groups.tf                   # db subnet group / cache subnet group
-│   ├── data.tf                            # remote_state: 01-networking + 02-security
-│   ├── variables.tf                       # define “quais domínios usam o quê”
-│   ├── outputs.tf
-│   ├── versions.tf
-│   └── backend.tf
+│   │   ├── data.tf                           # remote_state: 01-networking
+│   │   ├── outputs.tf
+│   │   └── main.tf                           # chama o módulo security (SG + KMS base)
+│   │
+│   ├── 03-data/
+│   │   ├── versions.tf
+│   │   ├── backend.tf
+│   │   ├── provider.tf
+│   │   ├── locals.tf
+│   │   ├── variables.tf                      # “quais domínios usam o quê”
+│   │   ├── data.tf                           # remote_state: 01-networking + 02-security
+│   │   ├── outputs.tf
+│   │   ├── main.tf                           # chama módulos rds/dynamodb/elasticache
+│   │   │
+│   │   ├── rds/                              # opcional: “camada” por serviço
+│   │   │   ├── variables.tf
+│   │   │   ├── outputs.tf
+│   │   │   └── main.tf
+│   │   │
+│   │   ├── dynamodb/
+│   │   │   ├── variables.tf
+│   │   │   ├── outputs.tf
+│   │   │   └── main.tf
+│   │   │
+│   │   └── elasticache/
+│   │       ├── variables.tf
+│   │       ├── outputs.tf
+│   │       └── main.tf
+│   │
+│   ├── 04-compute-eks/
+│   │   ├── versions.tf
+│   │   ├── backend.tf
+│   │   ├── provider.tf
+│   │   ├── locals.tf
+│   │   ├── variables.tf
+│   │   ├── data.tf                           # remote_state: 01 + 02 + 03
+│   │   ├── outputs.tf
+│   │   └── main.tf                           # chama módulos eks + iam_eks + ecr + irsa
+│   │
+│   ├── 05-edge-delivery/
+│   │   ├── versions.tf
+│   │   ├── backend.tf
+│   │   ├── provider.tf
+│   │   ├── locals.tf
+│   │   ├── variables.tf
+│   │   ├── data.tf                           # remote_state: 01 + 02 + 04
+│   │   ├── outputs.tf
+│   │   └── main.tf                           # chama módulos alb/acm/waf/cf/s3_frontend
+│   │
+│   ├── 06-dns-global/
+│   │   ├── versions.tf
+│   │   ├── backend.tf
+│   │   ├── provider.tf
+│   │   ├── locals.tf
+│   │   ├── variables.tf
+│   │   ├── data.tf                           # remote_state: 05-edge-delivery
+│   │   ├── outputs.tf
+│   │   └── main.tf                           # chama módulo dns + validações acm
+│   │
+│   ├── 07-observability/
+│   │   ├── versions.tf
+│   │   ├── backend.tf
+│   │   ├── provider.tf
+│   │   ├── locals.tf
+│   │   ├── variables.tf
+│   │   ├── data.tf                           # remote_state: 04 + 05
+│   │   ├── outputs.tf
+│   │   └── main.tf                           # chama módulo observability
+│   │
+│   └── 08-governance/
+│       ├── versions.tf
+│       ├── backend.tf
+│       ├── provider.tf
+│       ├── locals.tf
+│       ├── variables.tf
+│       ├── outputs.tf
+│       └── main.tf                           # chama módulo governance (budgets/config/guardrails)
 │
-├── 04-compute-eks/                        # compute (EKS + NodeGroups Spot/OnDemand + ECR)
-│   ├── main.tf                            # cluster + addons mínimos
-│   ├── nodegroups.tf                      # on-demand pequeno + spot principal
-│   ├── ecr.tf                             # repos por domínio (ms-catalog, ms-order, etc.)
-│   ├── irsa.tf                            # IRSA/OIDC (pods com IAM)
-│   ├── data.tf                            # remote_state: 01-networking + 02-security + 03-data
-│   ├── variables.tf
-│   ├── outputs.tf                         # cluster_name, oidc_arn, ecr_urls
-│   ├── versions.tf
-│   └── backend.tf
+├── modules/                                 # módulos reutilizáveis (sem backend)
+│   ├── networking/                          # vpc, subnets, nat, routes
+│   ├── security/                            # sg + kms base
+│   ├── data-rds/                            # rds + subnet group + parameter/option groups
+│   ├── data-dynamodb/                       # dynamodb
+│   ├── data-elasticache/                    # elasticache + subnet group
+│   ├── compute-eks/                         # cluster + addons
+│   ├── iam-eks/                             # iam técnico (cluster/nodes) + irsa/oidc
+│   ├── ecr/                                 # repos por domínio
+│   ├── edge-alb/                            # alb + listeners
+│   ├── edge-acm/                            # certificados
+│   ├── edge-waf/                            # waf (opcional)
+│   ├── edge-cloudfront/                     # cloudfront (opcional)
+│   ├── edge-s3-frontend/                    # bucket site/assets
+│   ├── dns/                                 # route53 + validações
+│   ├── observability/                       # cloudwatch + sns + dashboards
+│   └── governance/                          # budgets + config + guardduty + guardrails
 │
-├── 05-edge-delivery/                      # borda (sem DNS)
-│   ├── main.tf                            # “master” do passo
-│   ├── alb.tf                             # ALB + target groups + listeners (via ingress depois)
-│   ├── acm.tf                             # certificados (ex: *.toshiro.asantanadev.com)
-│   ├── waf.tf                             # WAF (opcional)
-│   ├── cloudfront.tf                      # opcional (frontend/assets)
-│   ├── s3_frontend.tf                     # bucket site/asset
-│   ├── data.tf                            # remote_state: 01/02/04 (pra pegar VPC/SG/EKS)
-│   ├── variables.tf
-│   ├── outputs.tf                         # alb_dns, cf_domain, acm_arn
-│   ├── versions.tf
-│   └── backend.tf
+├── env/                                     # inputs por ambiente E por stack (padrão enterprise)
+│   ├── dev/
+│   │   ├── 00-bootstrap.tfvars
+│   │   ├── 01-networking.tfvars
+│   │   ├── 02-security.tfvars
+│   │   ├── 03-data.tfvars
+│   │   ├── 04-compute-eks.tfvars
+│   │   ├── 05-edge-delivery.tfvars
+│   │   ├── 06-dns-global.tfvars
+│   │   ├── 07-observability.tfvars
+│   │   └── 08-governance.tfvars
+│   │
+│   └── prod/
+│       ├── 00-bootstrap.tfvars
+│       ├── 01-networking.tfvars
+│       ├── 02-security.tfvars
+│       ├── 03-data.tfvars
+│       ├── 04-compute-eks.tfvars
+│       ├── 05-edge-delivery.tfvars
+│       ├── 06-dns-global.tfvars
+│       ├── 07-observability.tfvars
+│       └── 08-governance.tfvars
 │
-├── 06-dns-global/                         # DNS isolado (sempre por último)
-│   ├── main.tf                            # Route53 records + validação ACM (se aplicável)
-│   ├── data.tf                            # remote_state: 05-edge-delivery
-│   ├── variables.tf                       # hosted_zone_id, domain, subdomínios
-│   ├── outputs.tf                         # urls finais
-│   ├── versions.tf
-│   └── backend.tf
-│
-└── env/                                   # “seus JSONs” do CloudFormation viram TFVARS aqui
-    ├── dev.tfvars
-    └── prod.tfvars
+├── .gitignore
+├── README.md                                # como rodar (ordem 00→08), convenções, padrões
+└── scripts/                                 # opcional: wrappers de execução
+    ├── init.sh
+    ├── plan.sh
+    └── apply.sh
+
+
 
 
 
