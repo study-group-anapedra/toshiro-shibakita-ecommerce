@@ -1,0 +1,124 @@
+name: Terraform Stacks (OIDC) - Prod
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "stacks/**"
+      - ".github/workflows/terraform-stacks.yml"
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "O que executar"
+        required: true
+        type: choice
+        options: [plan, apply]
+        default: "apply"
+      only_stack:
+        description: "Rodar só 1 stack (ex: networking). Deixe vazio para rodar todas em ordem."
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: terraform-${{ github.ref }}-prod
+  cancel-in-progress: false
+
+jobs:
+  prod:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+      TF_VAR_FILE: ${{ vars.TF_VAR_FILE }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - name: Configure AWS (OIDC AssumeRole)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          role-session-name: gha-terraform-prod
+
+      - name: Resolve backend config from tfvars
+        id: backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          TFVARS="${{ env.TF_VAR_FILE }}"
+
+          BUCKET=$(grep -E '^\s*remote_backend_bucket_name\s*=' "$TFVARS" | head -n1 | cut -d'=' -f2- | tr -d ' "')
+          TABLE=$(grep -E '^\s*remote_backend_dynamodb_table\s*=' "$TFVARS" | head -n1 | cut -d'=' -f2- | tr -d ' "')
+
+          if [ -z "${BUCKET:-}" ] || [ -z "${TABLE:-}" ]; then
+            echo "Faltou remote_backend_bucket_name ou remote_backend_dynamodb_table no tfvars."
+            exit 1
+          fi
+
+          echo "bucket=$BUCKET" >> "$GITHUB_OUTPUT"
+          echo "table=$TABLE" >> "$GITHUB_OUTPUT"
+
+      - name: Run stacks (ordered)
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          ACTION="${{ github.event_name == 'workflow_dispatch' && inputs.action || 'apply' }}"
+          ONLY="${{ github.event_name == 'workflow_dispatch' && inputs.only_stack || '' }}"
+
+          STACKS=(
+            "networking"
+            "security"
+            "data"
+            "compute-eks"
+            "k8s-addons"
+            "edge-delivery"
+            "dns-global"
+            "observability"
+            "governance"
+          )
+
+          run_stack () {
+            local s="$1"
+            echo "=============================="
+            echo "STACK: $s | ACTION: $ACTION"
+            echo "=============================="
+
+            pushd "stacks/$s" >/dev/null
+
+            terraform fmt -check -recursive
+
+            terraform init -reconfigure \
+              -backend-config="bucket=${{ steps.backend.outputs.bucket }}" \
+              -backend-config="dynamodb_table=${{ steps.backend.outputs.table }}" \
+              -backend-config="region=${{ env.AWS_REGION }}"
+
+            terraform validate
+
+            if [ "$ACTION" = "plan" ]; then
+              terraform plan -var-file="../env/prod.tfvars"
+            else
+              terraform apply -auto-approve -var-file="../env/prod.tfvars"
+            fi
+
+            popd >/dev/null
+          }
+
+          if [ -n "$ONLY" ]; then
+            run_stack "$ONLY"
+            exit 0
+          fi
+
+          for s in "${STACKS[@]}"; do
+            run_stack "$s"
+          done
