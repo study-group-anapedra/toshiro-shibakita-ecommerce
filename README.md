@@ -99,15 +99,24 @@ micro-infra-global/
 │   │   ├── outputs.tf
 │   │   └── main.tf                           # cria S3 tfstate + DynamoDB lock
 │   │
-│   ├── 01-networking/
-│   │   ├── versions.tf
-│   │   ├── backend.tf
-│   │   ├── provider.tf
-│   │   ├── locals.tf
-│   │   ├── variables.tf
-│   │   ├── outputs.tf
-│   │   ├── main.tf                           # chama o módulo networking
-│   │   └── data.tf                           # (opcional) leitura de info externa
+    01-networking/
+    │
+    ├── versions.tf
+    ├── backend.tf
+      ├── provider.tf
+      ├── locals.tf
+      ├── variables.tf
+      ├── vpc.tf
+      ├── subnets.tf
+      ├── igw.tf
+      ├── eip.tf
+      ├── nat.tf
+      ├── route_tables.tf
+      ├── routes.tf
+      ├── associations.tf
+      ├── outputs.tf
+      └── data.tf
+
 │   │
 │   ├── 02-security/
 │   │   ├── versions.tf
@@ -170,7 +179,7 @@ micro-infra-global/
 │   │   ├── provider.tf
 │   │   ├── locals.tf
 │   │   ├── variables.tf
-│   │   ├── data.tf                           # remote_state: 05-edge-delivery
+│   │   ├── data.tf                        # remote_state: 05-edge-delivery
 │   │   ├── outputs.tf
 │   │   └── main.tf                           # chama módulo dns + validações acm
 │   │
@@ -234,13 +243,10 @@ micro-infra-global/
 │       ├── 07-observability.tfvars
 │       └── 08-governance.tfvars
 │
-├── .gitignore
-├── README.md                                # como rodar (ordem 00→08), convenções, padrões
-└── scripts/                                 # opcional: wrappers de execução
-    ├── init.sh
-    ├── plan.sh
-    └── apply.sh
-
+├
+└── env/
+      ├── dev.tfvars 
+      └── prod.tfvars
 
 
 
