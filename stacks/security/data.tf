@@ -15,7 +15,7 @@ data "terraform_remote_state" "networking" {
   backend = "s3"
 
   config = {
-    bucket = "toshiro-ecommerce-dev-tfstate"
+    bucket = "toshiro-ecommerce-prod-tfstate"
     key    = "01-networking/terraform.tfstate"
     region = "us-east-1"
   }
