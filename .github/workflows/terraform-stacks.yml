@@ -10,18 +10,29 @@ permissions:
   contents: read
 
 env:
+  # Região continua sendo variável (não é segredo)
   AWS_REGION: ${{ vars.AWS_REGION }}
-  AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
 
-  # Backend PROD (fixo)
+  # ✅ CORRETO — vem do Repository Secret criado agora
+  AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+
+  # Backend PROD fixo
   TF_STATE_BUCKET: toshiro-ecommerce-prod-tfstate
   TF_LOCK_TABLE: toshiro-ecommerce-prod-tfstate-lock
 
+
+# =========================================================
+# 00 - BOOTSTRAP
+# =========================================================
+
 jobs:
+
   bootstrap:
     name: 00-bootstrap
     runs-on: ubuntu-latest
+
     steps:
+
       - uses: actions/checkout@v4
 
       - uses: hashicorp/setup-terraform@v3
@@ -43,13 +54,21 @@ jobs:
             -backend-config="region=${{ env.AWS_REGION }}" \
             -backend-config="encrypt=true" \
             -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"
+
           terraform apply -auto-approve -var-file=../env/prod.tfvars
+
+
+# =========================================================
+# 01 - NETWORKING
+# =========================================================
 
   networking:
     name: networking
     needs: bootstrap
     runs-on: ubuntu-latest
+
     steps:
+
       - uses: actions/checkout@v4
 
       - uses: hashicorp/setup-terraform@v3
@@ -71,13 +90,21 @@ jobs:
             -backend-config="region=${{ env.AWS_REGION }}" \
             -backend-config="encrypt=true" \
             -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"
+
           terraform apply -auto-approve -var-file=../env/prod.tfvars
+
+
+# =========================================================
+# 02 - SECURITY
+# =========================================================
 
   security:
     name: security
     needs: networking
     runs-on: ubuntu-latest
+
     steps:
+
       - uses: actions/checkout@v4
 
       - uses: hashicorp/setup-terraform@v3
@@ -99,13 +126,21 @@ jobs:
             -backend-config="region=${{ env.AWS_REGION }}" \
             -backend-config="encrypt=true" \
             -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"
+
           terraform apply -auto-approve -var-file=../env/prod.tfvars
+
+
+# =========================================================
+# 03 - DATA
+# =========================================================
 
   data:
     name: data
     needs: security
     runs-on: ubuntu-latest
+
     steps:
+
       - uses: actions/checkout@v4
 
       - uses: hashicorp/setup-terraform@v3
@@ -127,4 +162,5 @@ jobs:
             -backend-config="region=${{ env.AWS_REGION }}" \
             -backend-config="encrypt=true" \
             -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"
+
           terraform apply -auto-approve -var-file=../env/prod.tfvars
