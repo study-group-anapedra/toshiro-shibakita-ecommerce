@@ -1,17 +1,3 @@
-# .github/workflows/terraform-stacks.yml
-# 
-# FUNÇÃO:
-# Orquestra o deploy automatizado de todas as camadas de infraestrutura (Stacks).
-#
-# COMO FUNCIONA:
-# - Utiliza OIDC para autenticação segura na AWS (sem chaves fixas).
-# - Executa as stacks em ordem de dependência (00 -> networking -> security -> data).
-# - O uso de "-input=false" impede que o Terraform trave esperando uma resposta do usuário.
-#
-# RELEVÂNCIA:
-# Garante que o ambiente de Produção seja idêntico ao código, permitindo 
-# deploys rápidos, seguros e auditáveis através do GitHub.
-
 name: Terraform Stacks (OIDC) - Prod
 
 on:
@@ -20,12 +6,16 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write      # Necessário para autenticação OIDC com AWS
-  contents: read       # Necessário para clonar o repositório
+  id-token: write
+  contents: read
 
 env:
   AWS_REGION: ${{ vars.AWS_REGION }}
   AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
+
+  # Backend PROD (fixo)
+  TF_STATE_BUCKET: toshiro-ecommerce-prod-tfstate
+  TF_LOCK_TABLE: toshiro-ecommerce-prod-tfstate-lock
 
 jobs:
   bootstrap:
@@ -33,18 +23,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: hashicorp/setup-terraform@v3
-        with: { terraform_wrapper: false }
+        with:
+          terraform_wrapper: false
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           role-session-name: gha-terraform-prod-bootstrap
+
       - name: Apply bootstrap
         working-directory: stacks/00-bootstrap
         run: |
-          terraform init -reconfigure
-          terraform apply -auto-approve -input=false -var-file=../env/prod.tfvars
+          terraform init -reconfigure \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="key=prod/00-bootstrap/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="encrypt=true" \
+            -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"
+          terraform apply -auto-approve -var-file=../env/prod.tfvars
 
   networking:
     name: networking
@@ -52,18 +51,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: hashicorp/setup-terraform@v3
-        with: { terraform_wrapper: false }
+        with:
+          terraform_wrapper: false
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           role-session-name: gha-terraform-prod-networking
+
       - name: Apply networking
         working-directory: stacks/networking
         run: |
-          terraform init -reconfigure
-          terraform apply -auto-approve -input=false -var-file=../env/prod.tfvars
+          terraform init -reconfigure \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="key=prod/networking/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="encrypt=true" \
+            -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"
+          terraform apply -auto-approve -var-file=../env/prod.tfvars
 
   security:
     name: security
@@ -71,18 +79,27 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: hashicorp/setup-terraform@v3
-        with: { terraform_wrapper: false }
+        with:
+          terraform_wrapper: false
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           role-session-name: gha-terraform-prod-security
+
       - name: Apply security
         working-directory: stacks/security
         run: |
-          terraform init -reconfigure
-          terraform apply -auto-approve -input=false -var-file=../env/prod.tfvars
+          terraform init -reconfigure \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="key=prod/security/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="encrypt=true" \
+            -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"
+          terraform apply -auto-approve -var-file=../env/prod.tfvars
 
   data:
     name: data
@@ -90,17 +107,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: hashicorp/setup-terraform@v3
-        with: { terraform_wrapper: false }
+        with:
+          terraform_wrapper: false
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           role-session-name: gha-terraform-prod-data
-      
-      # CORREÇÃO: Adicionado -input=false para não travar na senha do banco
+
       - name: Apply data
         working-directory: stacks/data
         run: |
-          terraform init -reconfigure
-          terraform apply -auto-approve -input=false -var-file=../env/prod.tfvars
+          terraform init -reconfigure \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="key=prod/data/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="encrypt=true" \
+            -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"
+          terraform apply -auto-approve -var-file=../env/prod.tfvars
