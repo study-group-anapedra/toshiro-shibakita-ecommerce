@@ -1,3 +1,17 @@
+# .github/workflows/terraform-stacks.yml
+# 
+# FUNÇÃO:
+# Orquestra o deploy automatizado de todas as camadas de infraestrutura (Stacks).
+#
+# COMO FUNCIONA:
+# - Utiliza OIDC para autenticação segura na AWS (sem chaves fixas).
+# - Executa as stacks em ordem de dependência (00 -> networking -> security -> data).
+# - O uso de "-input=false" impede que o Terraform trave esperando uma resposta do usuário.
+#
+# RELEVÂNCIA:
+# Garante que o ambiente de Produção seja idêntico ao código, permitindo 
+# deploys rápidos, seguros e auditáveis através do GitHub.
+
 name: Terraform Stacks (OIDC) - Prod
 
 on:
@@ -6,13 +20,12 @@ on:
   workflow_dispatch:
 
 permissions:
-  id-token: write
-  contents: read
+  id-token: write      # Necessário para autenticação OIDC com AWS
+  contents: read       # Necessário para clonar o repositório
 
 env:
   AWS_REGION: ${{ vars.AWS_REGION }}
   AWS_ROLE_ARN: ${{ vars.AWS_ROLE_ARN }}
-  TF_VAR_FILE: ${{ vars.TF_VAR_FILE }}
 
 jobs:
   bootstrap:
@@ -31,7 +44,7 @@ jobs:
         working-directory: stacks/00-bootstrap
         run: |
           terraform init -reconfigure
-          terraform apply -auto-approve -var-file=../env/prod.tfvars
+          terraform apply -auto-approve -input=false -var-file=../env/prod.tfvars
 
   networking:
     name: networking
@@ -50,7 +63,7 @@ jobs:
         working-directory: stacks/networking
         run: |
           terraform init -reconfigure
-          terraform apply -auto-approve -var-file=../env/prod.tfvars
+          terraform apply -auto-approve -input=false -var-file=../env/prod.tfvars
 
   security:
     name: security
@@ -69,7 +82,7 @@ jobs:
         working-directory: stacks/security
         run: |
           terraform init -reconfigure
-          terraform apply -auto-approve -var-file=../env/prod.tfvars
+          terraform apply -auto-approve -input=false -var-file=../env/prod.tfvars
 
   data:
     name: data
@@ -84,8 +97,10 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           role-session-name: gha-terraform-prod-data
+      
+      # CORREÇÃO: Adicionado -input=false para não travar na senha do banco
       - name: Apply data
         working-directory: stacks/data
         run: |
           terraform init -reconfigure
-          terraform apply -auto-approve -var-file=../env/prod.tfvars
+          terraform apply -auto-approve -input=false -var-file=../env/prod.tfvars

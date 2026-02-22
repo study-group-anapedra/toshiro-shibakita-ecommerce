@@ -1,20 +1,36 @@
-# =========================================================
-# prod.tfvars
-# RELEVÂNCIA: Centraliza os nomes dos recursos de produção.
-# =========================================================
+/*
+  prod.tfvars
 
+  - Valores do ambiente PROD para as stacks Terraform.
+  - Outputs (VPC, SG, Subnets etc.) vêm das outras stacks via remote_state.
+  - Nenhum segredo aqui (Secrets Manager / IRSA depois).
+*/
+
+# =========================================================
+# Identidade do Projeto
+# =========================================================
 project_name = "toshiro-ecommerce"
 environment  = "prod"
-aws_region   = "us-east-1"
 
-# Configurações do Backend (Resolvendo os Warnings do log)
+# =========================================================
+# Região AWS
+# =========================================================
+aws_region = "us-east-1"
+
+# =========================================================
+# Backend remoto (Terraform State)
+# =========================================================
 remote_backend_bucket_name    = "toshiro-ecommerce-prod-tfstate"
 remote_backend_dynamodb_table = "toshiro-ecommerce-prod-tfstate-lock"
 
-# Networking
+# =========================================================
+# Rede
+# =========================================================
 vpc_cidr = "10.10.0.0/16"
 
-# Tags
+# =========================================================
+# Governança (Tags padrão)
+# =========================================================
 tags = {
   Project     = "toshiro-ecommerce"
   Environment = "prod"
