@@ -1,19 +1,26 @@
 /*
   data.tf (stack 03-data)
-
-  DIDÁTICA:
-  - Este arquivo faz a "ponte" automática entre as stacks.
-  - Ele lê o arquivo .tfstate do S3 para pegar IDs sem você precisar digitar.
-  - O segredo é o 'outputs.tf' da stack anterior ter o mesmo nome que chamamos aqui.
+  
+  O QUE FAZ: 
+  Busca os "endereços" e "portas" criados nas stacks anteriores (Networking e Security).
+  
+  COM QUEM CONVERSA:
+  - Stack 01 (Networking): Para saber em quais subnets o banco pode "morar".
+  - Stack 02 (Security): Para pegar as regras de Firewall (Security Groups).
+  
+  RELEVÂNCIA: 
+  Garante que o banco de dados seja criado exatamente dentro da infraestrutura
+  que você preparou, sem precisar de IDs manuais (hardcoded).
 */
 
 # Busca dados da rede (VPC e Subnets)
 data "terraform_remote_state" "networking" {
   backend = "s3"
   config = {
-    bucket = "toshiro-ecommerce-dev-tfstate"
+    # Usamos variável para o bucket para que funcione em dev e prod
+    bucket = var.remote_backend_bucket_name 
     key    = "01-networking/terraform.tfstate"
-    region = "us-east-1"
+    region = var.aws_region
   }
 }
 
@@ -21,18 +28,17 @@ data "terraform_remote_state" "networking" {
 data "terraform_remote_state" "security" {
   backend = "s3"
   config = {
-    bucket = "toshiro-ecommerce-dev-tfstate"
+    bucket = var.remote_backend_bucket_name
     key    = "security/terraform.tfstate"
-    region = "us-east-1"
+    region = var.aws_region
   }
 }
 
 locals {
-  # Pega os IDs automáticos da rede
   vpc_id             = data.terraform_remote_state.networking.outputs.vpc_id
   private_subnet_ids = data.terraform_remote_state.networking.outputs.private_subnet_ids
-
-  # CORREÇÃO: Mapeando os nomes exatos que estão no outputs.tf da security
+  
+  # IDs vindos da stack de segurança
   rds_sg_id   = data.terraform_remote_state.security.outputs.sg_rds_id
   redis_sg_id = data.terraform_remote_state.security.outputs.sg_redis_id
 }
