@@ -1,27 +1,12 @@
 /*
   stacks/data/data.tf
 
-  Função deste arquivo
-  --------------------
-  Este arquivo “liga” a stack 03-data às stacks anteriores (networking e security)
-  sem você copiar/colar IDs (VPC, subnets, security groups).
-
-  Como ele faz isso
-  -----------------
-  Ele lê os OUTPUTS publicados no state remoto (S3) das stacks anteriores.
-  Ou seja: networking/security exportam outputs -> aqui a stack data consome.
-
-  IMPORTANTE
-  ----------
-  Os keys precisam bater com o caminho real do state no S3.
-  No seu workflow, os keys são:
-    prod/networking/terraform.tfstate
-    prod/security/terraform.tfstate
+  FUNÇÃO:
+  Lê os OUTPUTS das stacks de Networking e Security via S3.
+  Isso evita que você precise digitar IDs de VPC ou Subnets manualmente.
 */
 
-# ---------------------------------------------------------
-# State remoto da stack networking (VPC + Subnets)
-# ---------------------------------------------------------
+# State remoto da stack networking
 data "terraform_remote_state" "networking" {
   backend = "s3"
   config = {
@@ -31,9 +16,7 @@ data "terraform_remote_state" "networking" {
   }
 }
 
-# ---------------------------------------------------------
-# State remoto da stack security (SGs)
-# ---------------------------------------------------------
+# State remoto da stack security
 data "terraform_remote_state" "security" {
   backend = "s3"
   config = {
@@ -43,14 +26,11 @@ data "terraform_remote_state" "security" {
   }
 }
 
-# ---------------------------------------------------------
-# Consolida “valores finais” para a stack data usar
-# ---------------------------------------------------------
 locals {
+  # IMPORTANTE: Os nomes à direita (.vpc_id, etc) devem existir no outputs.tf das stacks anteriores
   vpc_id             = data.terraform_remote_state.networking.outputs.vpc_id
   private_subnet_ids = data.terraform_remote_state.networking.outputs.private_subnet_ids
 
-  # Ajuste SOMENTE se seus outputs.tf tiverem nomes diferentes
   rds_sg_id   = data.terraform_remote_state.security.outputs.sg_rds_id
   redis_sg_id = data.terraform_remote_state.security.outputs.sg_redis_id
 }

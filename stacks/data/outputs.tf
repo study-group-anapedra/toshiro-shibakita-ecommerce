@@ -35,8 +35,6 @@ output "postgres_endpoint" {
   )
 }
 
-
-
 output "postgres_port" {
 
   description = "Porta do PostgreSQL."
@@ -47,7 +45,14 @@ output "postgres_port" {
   )
 }
 
-
+# CORREÇÃO: Exportando o ARN do Secret para que o EKS possa ler a senha
+output "postgres_master_user_secret_arn" {
+  description = "ARN do Secret gerenciado pela AWS que contém as credenciais do RDS."
+  value = try(
+    module.rds[0].master_user_secret_arn,
+    null
+  )
+}
 
 # =====================================================
 # REDIS (ELASTICACHE)
@@ -63,8 +68,6 @@ output "redis_primary_endpoint" {
   )
 }
 
-
-
 output "redis_reader_endpoint" {
 
   description = "Endpoint reader Redis (se existir)."
@@ -74,8 +77,6 @@ output "redis_reader_endpoint" {
     null
   )
 }
-
-
 
 # =====================================================
 # DYNAMODB

@@ -1,14 +1,3 @@
-/*
-  variables.tf (stack 03-data)
-
-  CORREÇÃO DOS ERROS DE REMOTE STATE:
-  - Adicionadas as variáveis 'remote_state_key_networking' e 'remote_state_key_security'.
-  - Sem essas declarações, o arquivo data.tf não consegue localizar os estados anteriores no S3.
-*/
-
-# =========================================================
-# Identidade do Projeto
-# =========================================================
 variable "project_name" {
   type        = string
   description = "Nome do projeto"
@@ -25,7 +14,7 @@ variable "aws_region" {
 }
 
 # =========================================================
-# Backend e Remote State (CORREÇÃO AQUI)
+# Backend e Remote State (ALINHADO COM WORKFLOW)
 # =========================================================
 variable "remote_backend_bucket_name" {
   type        = string
@@ -37,7 +26,7 @@ variable "remote_backend_dynamodb_table" {
   default = null
 }
 
-# Estas duas variáveis abaixo são as que estão causando os erros no seu log!
+# As chaves abaixo agora possuem os caminhos padrão usados pelo seu workflow
 variable "remote_state_key_networking" {
   type        = string
   description = "Caminho do state de networking"
@@ -51,7 +40,7 @@ variable "remote_state_key_security" {
 }
 
 # =========================================================
-# PostgreSQL - RDS
+# PostgreSQL - RDS (AWS Managed)
 # =========================================================
 variable "db_name" {
   type    = string
@@ -68,45 +57,15 @@ variable "db_instance_class" {
   default = "db.t3.micro"
 }
 
-variable "allocated_storage_gb" {
-  type    = number
-  default = 20
-}
-
-variable "max_allocated_storage_gb" {
-  type    = number
-  default = 50
-}
-
-variable "multi_az" {
-  type    = bool
-  default = false
-}
-
-variable "backup_retention_days" {
-  type    = number
-  default = 7
-}
-
-variable "deletion_protection" {
-  type    = bool
-  default = false
-}
-
-variable "skip_final_snapshot" {
-  type    = bool
-  default = true
-}
+variable "allocated_storage_gb" { type = number; default = 20 }
+variable "max_allocated_storage_gb" { type = number; default = 50 }
+variable "multi_az" { type = bool; default = false }
+variable "backup_retention_days" { type = number; default = 7 }
+variable "deletion_protection" { type = bool; default = false }
+variable "skip_final_snapshot" { type = bool; default = true }
 
 # =========================================================
 # Outros
 # =========================================================
-variable "vpc_cidr" {
-  type    = string
-  default = null
-}
-
-variable "tags" {
-  type    = map(string)
-  default = {}
-}
+variable "vpc_cidr" { type = string; default = null }
+variable "tags" { type = map(string); default = {} }
