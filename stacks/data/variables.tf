@@ -1,123 +1,112 @@
 /*
   variables.tf (stack 03-data)
 
-  O QUE FAZ:
-  - Declara as variáveis do root module da stack 03-data.
-  - Corrige os erros de "undeclared input variable" do pipeline.
-  - Aqui NÃO existe senha de banco: credenciais serão gerenciadas automaticamente pelo RDS/AWS.
-
-  RELEVÂNCIA:
-  - Permite que o Terraform aceite os valores vindos do prod.tfvars.
-  - Evita interrupções no GitHub Actions por falta de definição de inputs.
+  CORREÇÃO DOS ERROS DE REMOTE STATE:
+  - Adicionadas as variáveis 'remote_state_key_networking' e 'remote_state_key_security'.
+  - Sem essas declarações, o arquivo data.tf não consegue localizar os estados anteriores no S3.
 */
 
 # =========================================================
 # Identidade do Projeto
 # =========================================================
 variable "project_name" {
-  description = "Nome base do projeto usado para padronizar recursos AWS"
   type        = string
+  description = "Nome do projeto"
 }
 
 variable "environment" {
-  description = "Ambiente da infraestrutura (dev, staging ou prod)"
   type        = string
+  description = "Ambiente (dev/prod)"
 }
 
-# =========================================================
-# Região AWS
-# =========================================================
 variable "aws_region" {
-  description = "Região AWS onde os recursos serão criados"
-  type        = string
-  default     = "us-east-1"
+  type    = string
+  default = "us-east-1"
 }
 
 # =========================================================
-# Backend remoto (usado pelos remote_states)
+# Backend e Remote State (CORREÇÃO AQUI)
 # =========================================================
 variable "remote_backend_bucket_name" {
-  description = "Bucket do Terraform state remoto do ambiente"
   type        = string
+  description = "Nome do bucket S3 onde estão os states"
 }
 
 variable "remote_backend_dynamodb_table" {
-  description = "Tabela DynamoDB de lock do Terraform state"
+  type    = string
+  default = null
+}
+
+# Estas duas variáveis abaixo são as que estão causando os erros no seu log!
+variable "remote_state_key_networking" {
   type        = string
-  default     = null
+  description = "Caminho do state de networking"
+  default     = "01-networking/terraform.tfstate"
+}
+
+variable "remote_state_key_security" {
+  type        = string
+  description = "Caminho do state de security"
+  default     = "security/terraform.tfstate"
 }
 
 # =========================================================
-# PostgreSQL - Parâmetros do RDS (CORREÇÃO DO ERRO)
+# PostgreSQL - RDS
 # =========================================================
-# Estas declarações permitem que o root module aceite e repasse
-# os valores para o módulo RDS interno.
-
 variable "db_name" {
-  description = "Nome do database inicial"
-  type        = string
-  default     = "appdb"
+  type    = string
+  default = "appdb"
 }
 
 variable "db_username" {
-  description = "Usuário master do banco"
-  type        = string
-  default     = "dbadmin"
+  type    = string
+  default = "dbadmin"
 }
 
 variable "db_instance_class" {
-  description = "Tipo da instância (ex: db.t3.micro)"
-  type        = string
-  default     = "db.t3.micro"
+  type    = string
+  default = "db.t3.micro"
 }
 
 variable "allocated_storage_gb" {
-  description = "Armazenamento inicial em GB"
-  type        = number
-  default     = 20
+  type    = number
+  default = 20
 }
 
 variable "max_allocated_storage_gb" {
-  description = "Limite de autoscaling de armazenamento"
-  type        = number
-  default     = 50
+  type    = number
+  default = 50
 }
 
 variable "multi_az" {
-  description = "Habilitar Multi-AZ para alta disponibilidade"
-  type        = bool
-  default     = false
+  type    = bool
+  default = false
 }
 
 variable "backup_retention_days" {
-  description = "Dias de retenção de backup"
-  type        = number
-  default     = 7
+  type    = number
+  default = 7
 }
 
 variable "deletion_protection" {
-  description = "Proteção contra deleção acidental"
-  type        = bool
-  default     = false
+  type    = bool
+  default = false
 }
 
 variable "skip_final_snapshot" {
-  description = "Pular snapshot final ao destruir o banco"
-  type        = bool
-  default     = true
+  type    = bool
+  default = true
 }
 
 # =========================================================
-# Rede e Governança
+# Outros
 # =========================================================
 variable "vpc_cidr" {
-  description = "CIDR da VPC do ambiente"
-  type        = string
-  default     = null
+  type    = string
+  default = null
 }
 
 variable "tags" {
-  description = "Tags adicionais para governança e custos"
-  type        = map(string)
-  default     = {}
+  type    = map(string)
+  default = {}
 }
