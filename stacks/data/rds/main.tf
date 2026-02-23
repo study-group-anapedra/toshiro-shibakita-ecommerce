@@ -1,67 +1,32 @@
 /*
-  stacks/data/rds/main.tf
+  main.tf (03-data/rds)
 
-  O QUE É:
-  - Módulo/stack responsável por criar o RDS PostgreSQL (a “camada de dados”).
+  O que faz:
+  - Cria um RDS PostgreSQL.
+  - A senha do master user é gerenciada automaticamente pela AWS:
+      manage_master_user_password = true
+    Isso cria/usa um Secret no AWS Secrets Manager automaticamente.
 
-  O QUE FAZ (na prática):
-  1) Cria um DB Subnet Group (RDS precisa saber em quais subnets privadas ficar).
-  2) Cria a instância RDS PostgreSQL dentro da VPC privada.
-  3) Habilita senha gerenciada automaticamente pela AWS:
-     - manage_master_user_password = true
-     - A AWS guarda/rotaciona a senha no AWS Secrets Manager
+  Quem consome:
+  - outputs.tf do módulo (endpoint/port/db_name/secret_arn)
+  - stacks/apps/compute depois (via remote_state) para conectar no banco
 
-  COM QUEM CONVERSA:
-  - Recebe:
-    * private_subnet_ids (da stack networking via remote_state)
-    * database_security_group_id (da stack security via remote_state)
-  - “Entrega”:
-    * um banco RDS pronto e seguro, sem senha hardcoded no Terraform.
-
-  RELEVÂNCIA:
-  - Segurança real de produção:
-    * sem senha em tfvars
-    * sem senha no GitHub Actions
-    * senha centralizada e gerenciada no Secrets Manager
+  Relevância:
+  - Zero senha no Terraform, zero prompt no GitHub Actions.
+  - Padrão seguro e pronto pra produção.
 */
 
 locals {
   resource_prefix = "${var.environment}-${var.project_name}"
   identifier      = "${local.resource_prefix}-postgres"
-
-  /*
-    Username:
-    - A AWS NÃO escolhe username automaticamente.
-    - Então:
-      * se você passar db_username, usamos ele
-      * se vier vazio, o Terraform gera um username seguro e previsível
-  */
-  effective_db_username = (
-    trim(var.db_username) != ""
-    ? var.db_username
-    : "app_${random_pet.db_username_suffix.id}"
-  )
 }
 
-# -------------------------------------------------------------------------------
-# Username auto-gerado (quando db_username vier vazio)
-# -------------------------------------------------------------------------------
-resource "random_pet" "db_username_suffix" {
-  length = 2
-}
-
-# -------------------------------------------------------------------------------
-# DB Subnet Group (RDS em subnets privadas)
-# -------------------------------------------------------------------------------
 resource "aws_db_subnet_group" "this" {
   name       = "${local.identifier}-subnet-group"
   subnet_ids = var.private_subnet_ids
   tags       = var.tags
 }
 
-# -------------------------------------------------------------------------------
-# RDS PostgreSQL
-# -------------------------------------------------------------------------------
 resource "aws_db_instance" "this" {
   identifier     = local.identifier
   engine         = "postgres"
@@ -72,14 +37,9 @@ resource "aws_db_instance" "this" {
   max_allocated_storage = var.max_allocated_storage_gb
 
   db_name  = var.db_name
-  username = local.effective_db_username
+  username = var.db_username
 
-  /*
-     SENHA 100% gerenciada pela AWS
-    - A AWS cria e armazena a senha no Secrets Manager automaticamente.
-    - Não existe "password =" aqui.
-    - Isso elimina vazamento em log, tfvars, commits, etc.
-  */
+  #AWS cria/gerencia automaticamente a senha no Secrets Manager
   manage_master_user_password = true
 
   db_subnet_group_name   = aws_db_subnet_group.this.name

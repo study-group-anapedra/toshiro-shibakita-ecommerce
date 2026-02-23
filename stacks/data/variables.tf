@@ -1,13 +1,17 @@
 /*
   variables.tf (stack 03-data)
 
-  Este arquivo declara APENAS as variáveis que você precisa digitar ou 
-  que vêm do arquivo .tfvars.
+  O que faz:
+  - Declara as variáveis do root module da stack 03-data.
+  - Aqui NÃO existe senha de banco: credenciais serão gerenciadas automaticamente pelo RDS/AWS.
 
-  DIDÁTICA:
-  - Removemos vpc_id, subnets e security_groups daqui.
-  - Por quê? Porque agora o Terraform busca esses IDs sozinhos através do data.tf.
-  - Se deixarmos aqui, o Terraform "esquece" a automação e te pergunta no terminal.
+  Quem consome:
+  - stacks/data/main.tf e stacks/data/data.tf (remote_state)
+  - módulos internos (rds, dynamodb, elasticache etc.) via passagem de variáveis
+
+  Relevância:
+  - Evita prompts interativos no GitHub Actions.
+  - Evita warnings de tfvars com variáveis não declaradas.
 */
 
 # =========================================================
@@ -16,21 +20,11 @@
 variable "project_name" {
   description = "Nome base do projeto usado para padronizar recursos AWS"
   type        = string
-
-  validation {
-    condition     = length(var.project_name) >= 3
-    error_message = "project_name deve possuir pelo menos 3 caracteres."
-  }
 }
 
 variable "environment" {
   description = "Ambiente da infraestrutura (dev, staging ou prod)"
   type        = string
-
-  validation {
-    condition     = contains(["dev", "staging", "prod"], var.environment)
-    error_message = "environment deve ser dev, staging ou prod."
-  }
 }
 
 # =========================================================
@@ -43,34 +37,45 @@ variable "aws_region" {
 }
 
 # =========================================================
-# Credenciais do RDS
+# Backend remoto (usado pelos remote_states)
 # =========================================================
-variable "db_password" {
-  description = "Senha master do RDS (SENSITIVE: não aparece nos logs)"
+variable "remote_backend_bucket_name" {
+  description = "Bucket do Terraform state remoto do ambiente (ex: *-prod-tfstate)"
   type        = string
-  sensitive   = true
 }
 
-variable "db_name" {
-  description = "Nome do database inicial no RDS"
+variable "remote_backend_dynamodb_table" {
+  description = "Tabela DynamoDB de lock do Terraform state (se aplicável)"
   type        = string
-  default     = "appdb"
-}
-
-variable "db_username" {
-  description = "Usuário master do RDS"
-  type        = string
-  default     = "app"
-}
-
-variable "db_instance_class" {
-  description = "Classe da instância RDS (ex: db.t3.micro)"
-  type        = string
-  default     = "db.t3.micro"
+  default     = null
 }
 
 # =========================================================
-# Tags adicionais
+# Remote State Keys (precisam bater com o workflow/backend key)
+# =========================================================
+variable "remote_state_key_networking" {
+  description = "Key do state da stack networking no S3"
+  type        = string
+  default     = "prod/networking/terraform.tfstate"
+}
+
+variable "remote_state_key_security" {
+  description = "Key do state da stack security no S3"
+  type        = string
+  default     = "prod/security/terraform.tfstate"
+}
+
+# =========================================================
+# Rede (pode ser usado por módulos / padronização)
+# =========================================================
+variable "vpc_cidr" {
+  description = "CIDR da VPC do ambiente (se aplicável)"
+  type        = string
+  default     = null
+}
+
+# =========================================================
+# Tags
 # =========================================================
 variable "tags" {
   description = "Tags adicionais para governança e custos"

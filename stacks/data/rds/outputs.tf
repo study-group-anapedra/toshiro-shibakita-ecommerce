@@ -1,76 +1,37 @@
 /*
   outputs.tf (03-data/rds)
 
-  OBJETIVO
-  --------
-  Expor somente informações necessárias para conexão com o banco
-  sem nunca expor senha ou segredo diretamente.
+  Objetivo:
+  - Expor apenas o necessário para conexão.
+  - Não expor a senha.
+  - Expor o ARN do Secret gerenciado pela AWS para que a aplicação leia a senha com IAM.
 
-  QUEM USA ESTES OUTPUTS
-  ----------------------
-  ✔ Stack compute (EKS / EC2 / ECS)
-  ✔ API Gateway / aplicações backend
-  ✔ Outras stacks Terraform via terraform_remote_state
-
-  SEGURANÇA
-  ---------
-  A senha NÃO aparece aqui.
-  O RDS gerencia automaticamente no AWS Secrets Manager.
-
-  O que expomos:
-  - Endpoint
-  - Porta
-  - Nome DB
-  - ARN do Secret (para apps lerem via IAM)
+  Quem consome:
+  - stack 03-data (agregação)
+  - stacks futuras (compute/apps) via remote_state
 */
 
-# ---------------------------------------------------------
-# Endpoint DNS do banco
-# ---------------------------------------------------------
 output "endpoint" {
-  description = "Hostname de conexão PostgreSQL"
+  description = "Endpoint do PostgreSQL (hostname)."
   value       = aws_db_instance.this.address
 }
 
-# ---------------------------------------------------------
-# Porta do banco
-# ---------------------------------------------------------
 output "port" {
-  description = "Porta PostgreSQL"
+  description = "Porta do PostgreSQL."
   value       = aws_db_instance.this.port
 }
 
-# ---------------------------------------------------------
-# Identifier AWS do banco
-# ---------------------------------------------------------
 output "identifier" {
-  description = "Identifier do RDS"
+  description = "Identifier do RDS."
   value       = aws_db_instance.this.identifier
 }
 
-# ---------------------------------------------------------
-# Nome do Database inicial
-# ---------------------------------------------------------
 output "db_name" {
-  description = "Database inicial criado no RDS"
+  description = "Nome do database inicial."
   value       = aws_db_instance.this.db_name
 }
 
-# ---------------------------------------------------------
-#  SEGREDO GERENCIADO PELA AWS (IMPORTANTE)
-# ---------------------------------------------------------
-/*
-  NÃO expõe senha.
-
-  Apenas o ARN do Secret criado automaticamente
-  pelo RDS quando manage_master_user_password = true.
-
-  Sua aplicação usa esse ARN para buscar credenciais
-  via IAM Role.
-*/
 output "master_user_secret_arn" {
-
-  description = "ARN do Secret Manager contendo usuário e senha do RDS"
-
-  value = aws_db_instance.this.master_user_secret[0].secret_arn
+  description = "ARN do Secret (AWS-managed) com as credenciais do master user."
+  value       = aws_db_instance.this.master_user_secret[0].secret_arn
 }
