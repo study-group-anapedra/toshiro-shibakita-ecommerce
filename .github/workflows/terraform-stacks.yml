@@ -1,38 +1,68 @@
+# ============================================================
+# terraform-stacks.yml
+#
+# O QUE É ESTE ARQUIVO?
+# - Este é o workflow do GitHub Actions que executa o Terraform por “stacks” (pastas)
+#   em ordem, usando autenticação por OIDC (sem salvar Access Key/Secret Key no GitHub).
+#
+# PARA QUE SERVE?
+# - Automatiza o provisionamento/atualização da infraestrutura na AWS toda vez que você
+#   faz push na branch main (e também permite rodar manualmente com workflow_dispatch).
+#
+# COM QUEM ELE “CONVERSA”?
+# - GitHub Actions (runner): executa os comandos.
+# - AWS STS + IAM (OIDC): assume uma Role via "role-to-assume" (federation).
+# - S3 (Terraform State): armazena o estado remoto (tfstate).
+# - DynamoDB (State Lock): evita duas execuções simultâneas corromperem o state.
+# - Terraform CLI + Provider AWS: criam/atualizam recursos AWS em cada stack.
+#
+# QUAL A RELEVÂNCIA (por que isso é “enterprise”)?
+# - Ordem correta por dependências (remote_state): networking -> security -> data -> compute...
+# - Estado remoto (S3) + lock (DynamoDB): confiável para time/CI.
+# - OIDC: segurança melhor (credenciais de curta duração, sem chaves fixas).
+# - Stacks isoladas: uma falha em DNS não quebra a stack de banco, por exemplo.
+# ============================================================
+
 name: Terraform Stacks (OIDC) - Prod
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
   id-token: write
   contents: read
 
+# (Opcional, mas recomendado) Evita duas execuções simultâneas no mesmo ambiente.
+concurrency:
+  group: terraform-prod
+  cancel-in-progress: false
+
 env:
-  # Região continua sendo variável (não é segredo)
+  # Região vem de Repository Variables (Settings > Secrets and variables > Actions > Variables)
   AWS_REGION: ${{ vars.AWS_REGION }}
 
-  # ✅ CORRETO — vem do Repository Secret criado agora
+  # Role ARN vem de Repository Secrets (Settings > Secrets and variables > Actions > Secrets)
   AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_TO_ASSUME }}
 
-  # Backend PROD fixo
+  # Backend PROD fixo (state remoto e lock)
   TF_STATE_BUCKET: toshiro-ecommerce-prod-tfstate
   TF_LOCK_TABLE: toshiro-ecommerce-prod-tfstate-lock
 
-
-# =========================================================
-# 00 - BOOTSTRAP
-# =========================================================
+  # Arquivo de variáveis do ambiente (mantém a stack "multiambiente")
+  TFVARS_FILE: ../env/prod.tfvars
 
 jobs:
 
+  # =========================================================
+  # 00 - BOOTSTRAP (cria/garante o backend: bucket + lock table, etc.)
+  # =========================================================
   bootstrap:
     name: 00-bootstrap
     runs-on: ubuntu-latest
 
     steps:
-
       - uses: actions/checkout@v4
 
       - uses: hashicorp/setup-terraform@v3
@@ -45,7 +75,7 @@ jobs:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           role-session-name: gha-terraform-prod-bootstrap
 
-      - name: Apply bootstrap
+      - name: Apply 00-bootstrap
         working-directory: stacks/00-bootstrap
         run: |
           terraform init -reconfigure \
@@ -55,20 +85,17 @@ jobs:
             -backend-config="encrypt=true" \
             -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"
 
-          terraform apply -auto-approve -var-file=../env/prod.tfvars
+          terraform apply -auto-approve -var-file=${{ env.TFVARS_FILE }}
 
-
-# =========================================================
-# 01 - NETWORKING
-# =========================================================
-
+  # =========================================================
+  # 01 - NETWORKING (VPC, subnets, route tables, IGW/NAT, etc.)
+  # =========================================================
   networking:
-    name: networking
+    name: 01-networking
     needs: bootstrap
     runs-on: ubuntu-latest
 
     steps:
-
       - uses: actions/checkout@v4
 
       - uses: hashicorp/setup-terraform@v3
@@ -81,7 +108,7 @@ jobs:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           role-session-name: gha-terraform-prod-networking
 
-      - name: Apply networking
+      - name: Apply 01-networking
         working-directory: stacks/networking
         run: |
           terraform init -reconfigure \
@@ -91,20 +118,17 @@ jobs:
             -backend-config="encrypt=true" \
             -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"
 
-          terraform apply -auto-approve -var-file=../env/prod.tfvars
+          terraform apply -auto-approve -var-file=${{ env.TFVARS_FILE }}
 
-
-# =========================================================
-# 02 - SECURITY
-# =========================================================
-
+  # =========================================================
+  # 02 - SECURITY (Security Groups, IAM policies, KMS, etc.)
+  # =========================================================
   security:
-    name: security
+    name: 02-security
     needs: networking
     runs-on: ubuntu-latest
 
     steps:
-
       - uses: actions/checkout@v4
 
       - uses: hashicorp/setup-terraform@v3
@@ -117,7 +141,7 @@ jobs:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           role-session-name: gha-terraform-prod-security
 
-      - name: Apply security
+      - name: Apply 02-security
         working-directory: stacks/security
         run: |
           terraform init -reconfigure \
@@ -127,20 +151,17 @@ jobs:
             -backend-config="encrypt=true" \
             -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"
 
-          terraform apply -auto-approve -var-file=../env/prod.tfvars
+          terraform apply -auto-approve -var-file=${{ env.TFVARS_FILE }}
 
-
-# =========================================================
-# 03 - DATA
-# =========================================================
-
+  # =========================================================
+  # 03 - DATA (RDS/Redis/DynamoDB/etc. - depende de networking+security)
+  # =========================================================
   data:
-    name: data
+    name: 03-data
     needs: security
     runs-on: ubuntu-latest
 
     steps:
-
       - uses: actions/checkout@v4
 
       - uses: hashicorp/setup-terraform@v3
@@ -153,7 +174,7 @@ jobs:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           role-session-name: gha-terraform-prod-data
 
-      - name: Apply data
+      - name: Apply 03-data
         working-directory: stacks/data
         run: |
           terraform init -reconfigure \
@@ -163,4 +184,202 @@ jobs:
             -backend-config="encrypt=true" \
             -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"
 
-          terraform apply -auto-approve -var-file=../env/prod.tfvars
+          terraform apply -auto-approve -var-file=${{ env.TFVARS_FILE }}
+
+  # =========================================================
+  # 04 - COMPUTE (EKS) (cluster + nodegroups/iam/sgs do compute)
+  # =========================================================
+  compute_eks:
+    name: 04-compute-eks
+    needs: data
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          role-session-name: gha-terraform-prod-compute-eks
+
+      - name: Apply 04-compute-eks
+        working-directory: stacks/compute-eks
+        run: |
+          terraform init -reconfigure \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="key=prod/compute-eks/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="encrypt=true" \
+            -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"
+
+          terraform apply -auto-approve -var-file=${{ env.TFVARS_FILE }}
+
+  # =========================================================
+  # 05 - K8S ADDONS (addons do cluster: ingress, alb controller, etc.)
+  # =========================================================
+  k8s_addons:
+    name: 05-k8s-addons
+    needs: compute_eks
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          role-session-name: gha-terraform-prod-k8s-addons
+
+      - name: Apply 05-k8s-addons
+        working-directory: stacks/k8s-addons
+        run: |
+          terraform init -reconfigure \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="key=prod/k8s-addons/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="encrypt=true" \
+            -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"
+
+          terraform apply -auto-approve -var-file=${{ env.TFVARS_FILE }}
+
+  # =========================================================
+  # 06 - EDGE DELIVERY (ALB/CloudFront/WAF/etc. dependendo da sua arquitetura)
+  # =========================================================
+  edge_delivery:
+    name: 06-edge-delivery
+    needs: k8s_addons
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          role-session-name: gha-terraform-prod-edge-delivery
+
+      - name: Apply 06-edge-delivery
+        working-directory: stacks/edge-delivery
+        run: |
+          terraform init -reconfigure \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="key=prod/edge-delivery/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="encrypt=true" \
+            -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"
+
+          terraform apply -auto-approve -var-file=${{ env.TFVARS_FILE }}
+
+  # =========================================================
+  # 07 - DNS GLOBAL (Route53 / hosted zones / records / certificados se aplicável)
+  # =========================================================
+  dns_global:
+    name: 07-dns-global
+    needs: edge_delivery
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          role-session-name: gha-terraform-prod-dns-global
+
+      - name: Apply 07-dns-global
+        working-directory: stacks/dns-global
+        run: |
+          terraform init -reconfigure \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="key=prod/dns-global/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="encrypt=true" \
+            -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"
+
+          terraform apply -auto-approve -var-file=${{ env.TFVARS_FILE }}
+
+  # =========================================================
+  # 08 - OBSERVABILITY (CloudWatch, alarms, dashboards, logs, etc.)
+  # =========================================================
+  observability:
+    name: 08-observability
+    needs: dns_global
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          role-session-name: gha-terraform-prod-observability
+
+      - name: Apply 08-observability
+        working-directory: stacks/observability
+        run: |
+          terraform init -reconfigure \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="key=prod/observability/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="encrypt=true" \
+            -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"
+
+          terraform apply -auto-approve -var-file=${{ env.TFVARS_FILE }}
+
+  # =========================================================
+  # 09 - GOVERNANCE (tags/policies/guardrails/custos/auditoria)
+  # =========================================================
+  governance:
+    name: 09-governance
+    needs: observability
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_wrapper: false
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          role-session-name: gha-terraform-prod-governance
+
+      - name: Apply 09-governance
+        working-directory: stacks/governance
+        run: |
+          terraform init -reconfigure \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="key=prod/governance/terraform.tfstate" \
+            -backend-config="region=${{ env.AWS_REGION }}" \
+            -backend-config="encrypt=true" \
+            -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"
+
+          terraform apply -auto-approve -var-file=${{ env.TFVARS_FILE }}
