@@ -153,15 +153,17 @@ jobs:
 
           terraform apply -auto-approve -var-file=${{ env.TFVARS_FILE }}
 
-  # =========================================================
-  # 03 - DATA (RDS/Redis/DynamoDB/etc. - depende de networking+security)
-  # =========================================================
+ # =========================================================
+# 03 - DATA
+# =========================================================
+
   data:
-    name: 03-data
+    name: data
     needs: security
     runs-on: ubuntu-latest
 
     steps:
+
       - uses: actions/checkout@v4
 
       - uses: hashicorp/setup-terraform@v3
@@ -174,7 +176,7 @@ jobs:
           role-to-assume: ${{ env.AWS_ROLE_ARN }}
           role-session-name: gha-terraform-prod-data
 
-      - name: Apply 03-data
+      - name: Apply data
         working-directory: stacks/data
         run: |
           terraform init -reconfigure \
@@ -184,8 +186,7 @@ jobs:
             -backend-config="encrypt=true" \
             -backend-config="dynamodb_table=${{ env.TF_LOCK_TABLE }}"
 
-          terraform apply -auto-approve -var-file=${{ env.TFVARS_FILE }}
-
+          terraform apply -auto-approve -var-file=../env/prod.tfvars
   # =========================================================
   # 04 - COMPUTE (EKS) (cluster + nodegroups/iam/sgs do compute)
   # =========================================================
