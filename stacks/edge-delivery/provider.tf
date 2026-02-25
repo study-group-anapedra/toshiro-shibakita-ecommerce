@@ -7,12 +7,14 @@
   RELEVÂNCIA:
   - Remove o uso de profiles locais para permitir a autenticação via OIDC no GitHub Actions.
   - Aplica tags automáticas para garantir que todos os recursos de rede sejam rastreáveis.
+
+   OBJETIVO: Configurar acesso para recursos de borda (ALB/CloudFront).
 */
+
 
 provider "aws" {
   region = var.aws_region
 
-  # Tags padrão para controle de custos e organização enterprise
   default_tags {
     tags = merge(
       {

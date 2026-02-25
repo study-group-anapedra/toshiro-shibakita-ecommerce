@@ -14,12 +14,17 @@
   RELEVÂNCIA:
   - Este arquivo garante que o Terraform tenha permissão para instalar componentes dentro do Kubernetes
     sem usar credenciais fixas, mantendo o padrão de segurança Enterprise.
+
+    OBJETIVO: Configurar AWS, Kubernetes e Helm para instalar o Load Balancer Controller.
+      OBJETIVO: Configurar AWS, Kubernetes e Helm para instalar o Load Balancer Controller.
+
 */
+
+
 
 provider "aws" {
   region = var.aws_region
 
-  # Adicionamos as default_tags para manter a governança em todos os recursos de IAM desta stack
   default_tags {
     tags = {
       Project     = var.project_name
@@ -30,31 +35,21 @@ provider "aws" {
   }
 }
 
-# Token temporário para autenticar no API Server do EKS
-# Ele conversa com o cluster que definimos no arquivo data.tf desta stack
+# Gera o token dinâmico para o Terraform entrar no cluster recém-criado
 data "aws_eks_cluster_auth" "this" {
   name = data.terraform_remote_state.eks.outputs.cluster_name
 }
 
 provider "kubernetes" {
-  host = data.terraform_remote_state.eks.outputs.cluster_endpoint
-
-  # O certificado vem do EKS em Base64, decodificamos aqui para o Kubernetes aceitar a conexão TLS
-  cluster_ca_certificate = base64decode(
-    data.terraform_remote_state.eks.outputs.cluster_ca_certificate
-  )
-
-  token = data.aws_eks_cluster_auth.this.token
+  host                   = data.terraform_remote_state.eks.outputs.cluster_endpoint
+  cluster_ca_certificate = base64decode(data.terraform_remote_state.eks.outputs.cluster_ca_certificate)
+  token                  = data.aws_eks_cluster_auth.this.token
 }
 
 provider "helm" {
   kubernetes {
-    host = data.terraform_remote_state.eks.outputs.cluster_endpoint
-
-    cluster_ca_certificate = base64decode(
-      data.terraform_remote_state.eks.outputs.cluster_ca_certificate
-    )
-
-    token = data.aws_eks_cluster_auth.this.token
+    host                   = data.terraform_remote_state.eks.outputs.cluster_endpoint
+    cluster_ca_certificate = base64decode(data.terraform_remote_state.eks.outputs.cluster_ca_certificate)
+    token                  = data.aws_eks_cluster_auth.this.token
   }
 }

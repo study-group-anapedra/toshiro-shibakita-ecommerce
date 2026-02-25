@@ -1,13 +1,25 @@
 /*
-  provider.tf (stack 04-compute-eks)
-  FUNÇÃO: Configurar o provedor AWS.
+  stacks/compute-eks/provider.tf
+  FUNÇÃO: Configurar o provedor AWS para o EKS.
+  
+  MUDANÇA: Removido o 'profile' local para permitir que o GitHub Actions 
+  se autentique via OIDC automaticamente.
 */
 
 provider "aws" {
-  region  = var.aws_region
-  profile = "terraform-dev" # O perfil que estamos usando no terminal
+  region = var.aws_region
+
+  # Removido: profile = "terraform-dev"
 
   default_tags {
-    tags = var.tags
+    tags = merge(
+      {
+        Project     = var.project_name
+        Environment = var.environment
+        ManagedBy   = "terraform"
+        Stack       = "04-compute-eks"
+      },
+      var.tags
+    )
   }
 }
