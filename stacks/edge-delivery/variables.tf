@@ -1,6 +1,6 @@
 /*
-  variables.tf (stack 05-edge-delivery)
-  DIDÁTICA: Define os parâmetros de entrada da camada de entrega (ALB + S3).
+  variables.tf (stack 06-edge-delivery)
+  DIDÁTICA: Define os parâmetros de entrada da camada de entrega (ALB + Certificados).
 */
 
 variable "project_name" {
@@ -20,12 +20,12 @@ variable "aws_region" {
 }
 
 variable "remote_backend_bucket_name" {
-  description = "Nome do bucket S3 onde ficam os states (remote state) das stacks anteriores"
+  description = "Nome do bucket S3 onde ficam os states das stacks anteriores"
   type        = string
 }
 
 variable "acm_certificate_arn" {
-  description = "ARN do certificado ACM para habilitar HTTPS no ALB (opcional). Se vazio, cria apenas HTTP."
+  description = "ARN do certificado ACM para habilitar HTTPS no ALB (opcional)."
   type        = string
   default     = ""
 }
