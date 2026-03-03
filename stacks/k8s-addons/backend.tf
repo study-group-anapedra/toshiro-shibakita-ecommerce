@@ -1,29 +1,34 @@
 /*
-  backend.tf
+  backend.tf (stack 05-k8s-addons)
 
-  FUNÇÃO:
-  Define onde o estado desta stack será salvo.
+  Este arquivo define onde o Terraform armazenará o state
+  da stack "k8s-addons".
 
-  IMPORTÂNCIA:
-  Cada stack possui state isolado para evitar impacto cruzado.
-  Isso permite destruir addons sem destruir o EKS.
+  Cada stack (networking, security, compute-eks, k8s-addons, etc.)
+  possui seu próprio state isolado dentro do bucket S3 do ambiente.
 
-  COMUNICA COM:
-  ✔ S3 (state storage)
-  ✔ DynamoDB (state lock)
-
-  RELEVÂNCIA:
-  Evita corrupção de state em ambientes multiusuário e CI/CD.
+  Isso permite:
+  - isolamento entre stacks (blast radius menor)
+  - execução independente no CI/CD
+  - destruir/recriar só os addons sem mexer no cluster EKS
 */
 
 terraform {
-
   backend "s3" {
-    bucket         = "CHANGE-ME-TFSTATE-BUCKET"
-    key            = "05-k8s-addons/terraform.tfstate"
-    region         = "us-east-1"
-    dynamodb_table = "CHANGE-ME-TFLOCK"
-    encrypt        = true
-  }
 
+    # Bucket criado na stack 00-bootstrap
+    bucket = "toshiro-ecommerce-dev-tfstate"
+
+    # State isolado desta stack
+    key = "k8s-addons/terraform.tfstate"
+
+    # Região AWS
+    region = "us-east-1"
+
+    # Tabela de lock criada no bootstrap
+    dynamodb_table = "toshiro-ecommerce-dev-tfstate-lock"
+
+    # Criptografia do state
+    encrypt = true
+  }
 }
