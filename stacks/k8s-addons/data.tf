@@ -1,26 +1,34 @@
 /*
-  stacks/k8s-addons/data.tf
+  data.tf (stack 05-k8s-addons)
 
   FUNÇÃO:
-  Lê outputs das stacks anteriores (especificamente da 04-compute-eks).
+  - Ler (via remote_state) os outputs do cluster EKS criado na stack 04-compute-eks.
 
-  Terraform NÃO compartilha dados sozinho.
-  Remote state é obrigatório para que esta stack saiba o nome e o endpoint do cluster.
+  POR QUE:
+  - O provider "kubernetes" precisa do:
+    ✔ endpoint da API do cluster
+    ✔ CA certificate
+    ✔ nome do cluster (para gerar token via aws eks get-token)
 
-  COMUNICA COM:
-  ✔ compute-eks (prod/compute-eks/terraform.tfstate)
+  DEPENDE DE:
+  - stack 04-compute-eks ter outputs:
+    cluster_name, cluster_endpoint, cluster_ca_certificate, oidc_provider_arn, oidc_provider_url
 */
 
-data "terraform_remote_state" "eks" {
+data "terraform_remote_state" "compute_eks" {
   backend = "s3"
-
   config = {
     bucket = var.remote_backend_bucket_name
-    
-    # CORREÇÃO: Adicionado o prefixo "prod/" para alinhar com o caminho 
-    # definido no seu arquivo terraform-stacks.yml
     key    = "prod/compute-eks/terraform.tfstate"
-    
     region = var.aws_region
   }
+}
+
+locals {
+  cluster_name           = data.terraform_remote_state.compute_eks.outputs.cluster_name
+  cluster_endpoint       = data.terraform_remote_state.compute_eks.outputs.cluster_endpoint
+  cluster_ca_certificate = data.terraform_remote_state.compute_eks.outputs.cluster_ca_certificate
+
+  oidc_provider_arn = data.terraform_remote_state.compute_eks.outputs.oidc_provider_arn
+  oidc_provider_url = data.terraform_remote_state.compute_eks.outputs.oidc_provider_url
 }
