@@ -44,7 +44,7 @@ module "eks" {
   cluster_version = "1.31"
 
   #################################
-  # 🔥 CORREÇÃO DO ERRO 38 CHARS
+  # CORREÇÃO DO ERRO 38 CHARS
   #################################
   iam_role_use_name_prefix = false
   cluster_security_group_use_name_prefix = false

@@ -16,14 +16,19 @@
 terraform {
   backend "s3" {
 
-    # Bucket criado na stack 00-bootstrap 
-    bucket = "toshiro-ecommerce-dev-tfstate"
+    # Bucket criado na stack 00-bootstrap
+    bucket = "toshiro-ecommerce-prod-tfstate"
 
-    # State ISOLADO desta stack (compute-eks)
-    key = "compute-eks/terraform.tfstate"
+    # Caminho do state desta stack dentro do bucket
+    key = "prod/compute-eks/terraform.tfstate"
 
-    region         = "us-east-1"
-    dynamodb_table = "toshiro-ecommerce-dev-tfstate-lock"
-    encrypt        = true
+    # Região AWS
+    region = "us-east-1"
+
+    # Lock do Terraform
+    dynamodb_table = "toshiro-ecommerce-prod-tfstate-lock"
+
+    # Criptografia do state
+    encrypt = true
   }
 }

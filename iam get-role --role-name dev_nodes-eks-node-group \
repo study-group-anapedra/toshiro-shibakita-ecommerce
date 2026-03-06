@@ -1,0 +1,52 @@
+{
+    "Role": {
+        "Path": "/",
+        "RoleName": "toshiro-ecommerce-prod-cluster-cluster",
+        "RoleId": "AROAVKIRVEETJA4H7KTJD",
+        "Arn": "arn:aws:iam::365646127398:role/toshiro-ecommerce-prod-cluster-cluster",
+        "CreateDate": "2026-03-03T18:38:01+00:00",
+        "AssumeRolePolicyDocument": {
+            "Version": "2012-10-17",
+            "Statement": [
+                {
+                    "Sid": "EKSClusterAssumeRole",
+                    "Effect": "Allow",
+                    "Principal": {
+                        "Service": "eks.amazonaws.com"
+                    },
+                    "Action": [
+                        "sts:TagSession",
+                        "sts:AssumeRole"
+                    ]
+                }
+            ]
+        },
+        "MaxSessionDuration": 3600,
+        "Tags": [
+            {
+                "Key": "ManagedBy",
+                "Value": "terraform"
+            },
+            {
+                "Key": "Owner",
+                "Value": "ana"
+            },
+            {
+                "Key": "Project",
+                "Value": "toshiro-ecommerce"
+            },
+            {
+                "Key": "Stack",
+                "Value": "04-compute-eks"
+            },
+            {
+                "Key": "Environment",
+                "Value": "prod"
+            }
+        ],
+        "RoleLastUsed": {
+            "LastUsedDate": "2026-03-03T19:24:21+00:00",
+            "Region": "us-east-1"
+        }
+    }
+}
