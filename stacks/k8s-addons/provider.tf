@@ -1,51 +1,53 @@
 /*
-  stacks/k8s-addons/provider.tf
+  provider.tf (stack 05-k8s-addons)
 
   OBJETIVO:
   Configurar os providers necessários para esta stack:
-  - AWS: Cria IAM Policies e Roles para o IRSA (IAM Roles for Service Accounts).
-  - Kubernetes: Cria ServiceAccounts dentro do cluster com anotações de segurança.
-  - Helm: Instala o AWS Load Balancer Controller, essencial para gerenciar múltiplos domínios e microserviços.
+  - AWS: cria IAM/IRSA/policies
+  - Kubernetes: cria recursos dentro do cluster
+  - Helm: instala charts no cluster (ex.: AWS Load Balancer Controller)
 
-  COM O QUE SE COMUNICA:
-  - terraform_remote_state "eks": Obtém o endpoint e o certificado do cluster criado na Stack 04.
-  - AWS EKS Auth: Gera o token temporário necessário para o Terraform "entrar" no cluster.
+  COMO FUNCIONA:
+  - O cluster já foi criado na stack 04-compute-eks
+  - Esta stack lê os dados do cluster via remote_state
+  - Depois gera um token temporário com aws_eks_cluster_auth
+  - Com isso, Terraform consegue autenticar no Kubernetes sem usar profile fixo
 
-  RELEVÂNCIA:
-  - Este arquivo garante que o Terraform tenha permissão para instalar componentes dentro do Kubernetes
-    sem usar credenciais fixas, mantendo o padrão de segurança Enterprise.
-
-    OBJETIVO: Configurar AWS, Kubernetes e Helm para instalar o Load Balancer Controller.
-      OBJETIVO: Configurar AWS, Kubernetes e Helm para instalar o Load Balancer Controller.
-
+  IMPORTANTE:
+  - Não duplicar provider "aws"
+  - Não duplicar data "aws_eks_cluster_auth" "this"
+  - Não duplicar provider "kubernetes"
 */
-
-
 
 provider "aws" {
   region = var.aws_region
 
   default_tags {
-    tags = {
-      Project     = var.project_name
-      Environment = var.environment
-      ManagedBy   = "terraform"
-      Stack       = "05-k8s-addons"
-    }
+    tags = merge(
+      {
+        Project     = var.project_name
+        Environment = var.environment
+        ManagedBy   = "terraform"
+        Stack       = "05-k8s-addons"
+      },
+      var.tags
+    )
   }
 }
 
-# Gera o token dinâmico para o Terraform entrar no cluster recém-criado
+# Gera token temporário autenticado no cluster EKS
 data "aws_eks_cluster_auth" "this" {
   name = data.terraform_remote_state.eks.outputs.cluster_name
 }
 
+# Provider Kubernetes autenticando no cluster criado na stack 04
 provider "kubernetes" {
   host                   = data.terraform_remote_state.eks.outputs.cluster_endpoint
   cluster_ca_certificate = base64decode(data.terraform_remote_state.eks.outputs.cluster_ca_certificate)
   token                  = data.aws_eks_cluster_auth.this.token
 }
 
+# Provider Helm usando a mesma autenticação do Kubernetes
 provider "helm" {
   kubernetes {
     host                   = data.terraform_remote_state.eks.outputs.cluster_endpoint
