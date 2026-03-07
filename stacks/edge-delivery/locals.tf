@@ -1,17 +1,15 @@
 /*
-  locals.tf (stack 04-compute-eks)
-  DIDÁTICA: Define o nome do cluster e os serviços que ganharão ECR.
+  locals.tf (stack 06-edge-delivery)
+
+  OBJETIVO:
+  Centralizar convenções locais de nomenclatura desta stack.
+
+  CORREÇÃO APLICADA:
+  - Removidas referências herdadas da stack 04-compute-eks
+  - Esta stack não cria cluster EKS nem lista de microsserviços
+  - Mantido apenas o que faz sentido para a camada de entrega
 */
 
 locals {
-  cluster_name = "${var.project_name}-${var.environment}-cluster"
-
-  # Seus domínios conforme a tabela arquitetural
-  services = [
-    "catalog-service",
-    "inventory-service",
-    "order-service",
-    "auth-service",
-    "notification-service"
-  ]
+  name_prefix = "${var.project_name}-${var.environment}"
 }

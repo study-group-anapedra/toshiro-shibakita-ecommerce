@@ -1,6 +1,12 @@
 /*
   variables.tf (stack 06-edge-delivery)
-  DIDÁTICA: Define os parâmetros de entrada da camada de entrega (ALB + Certificados).
+
+  OBJETIVO:
+  Declarar os parâmetros de entrada desta stack.
+
+  OBSERVAÇÃO:
+  - Algumas variáveis podem não ser usadas nesta versão inicial,
+    mas foram mantidas para evolução futura da camada de entrega.
 */
 
 variable "project_name" {
@@ -25,7 +31,7 @@ variable "remote_backend_bucket_name" {
 }
 
 variable "acm_certificate_arn" {
-  description = "ARN do certificado ACM para habilitar HTTPS no ALB (opcional)."
+  description = "ARN do certificado ACM para uso futuro em HTTPS/CloudFront/ALB"
   type        = string
   default     = ""
 }

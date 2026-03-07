@@ -1,16 +1,14 @@
 /*
-  stacks/edge-delivery/provider.tf
+  provider.tf (stack 06-edge-delivery)
 
   OBJETIVO:
-  Configurar o acesso à AWS para criar os recursos de borda (ALB/CloudFront).
+  Configurar o provider AWS para esta stack.
 
-  RELEVÂNCIA:
-  - Remove o uso de profiles locais para permitir a autenticação via OIDC no GitHub Actions.
-  - Aplica tags automáticas para garantir que todos os recursos de rede sejam rastreáveis.
-
-   OBJETIVO: Configurar acesso para recursos de borda (ALB/CloudFront).
+  CORREÇÃO:
+  - Mantido sem profile local
+  - Compatível com autenticação via OIDC no GitHub Actions
+  - Tags automáticas ajudam em rastreabilidade e governança
 */
-
 
 provider "aws" {
   region = var.aws_region

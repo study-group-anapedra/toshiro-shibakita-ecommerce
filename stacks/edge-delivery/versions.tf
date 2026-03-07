@@ -1,6 +1,12 @@
 /*
-  versions.tf (stack 04-compute-eks)
-  DIDÁTICA: Garante que todos usem a mesma versão do Terraform e dos plugins AWS/Kubernetes.
+  versions.tf (stack 06-edge-delivery)
+
+  OBJETIVO:
+  Fixar a versão mínima do Terraform e dos providers usados nesta stack.
+
+  CORREÇÃO APLICADA:
+  - Removido provider kubernetes, pois esta stack não cria recursos Kubernetes
+  - Mantido apenas provider AWS, que é o único necessário aqui
 */
 
 terraform {
@@ -10,10 +16,6 @@ terraform {
     aws = {
       source  = "hashicorp/aws"
       version = "~> 5.0"
-    }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "~> 2.23"
     }
   }
 }
