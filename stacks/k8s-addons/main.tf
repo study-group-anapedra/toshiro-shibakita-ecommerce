@@ -8,24 +8,20 @@
   COMPONENTES INSTALADOS
   - AWS Load Balancer Controller (via Helm)
   - ServiceAccount com IRSA
-  - Namespace kube-system
+
+  CORREÇÃO APLICADA
+  - Removido o resource do namespace kube-system, porque esse namespace
+    já existe por padrão no EKS.
+  - Isso resolve o erro:
+      namespaces "kube-system" already exists
 
   COMO FUNCIONA
   1. Lê dados do cluster via remote_state (stack 04)
   2. Cria IAM Policy necessária
-  3. Cria ServiceAccount com anotação IRSA
-  4. Instala o Helm chart do AWS Load Balancer Controller
+  3. Cria IAM Role para IRSA
+  4. Cria ServiceAccount no namespace kube-system
+  5. Instala o Helm chart do AWS Load Balancer Controller
 */
-
-############################################################
-# Namespace
-############################################################
-
-resource "kubernetes_namespace" "kube_system" {
-  metadata {
-    name = "kube-system"
-  }
-}
 
 ############################################################
 # IAM Policy para o AWS Load Balancer Controller
@@ -43,7 +39,6 @@ resource "aws_iam_policy" "alb_controller" {
 ############################################################
 
 data "aws_iam_policy_document" "irsa_assume_role" {
-
   statement {
     effect = "Allow"
 
@@ -80,7 +75,6 @@ resource "aws_iam_role_policy_attachment" "alb_controller" {
 ############################################################
 
 resource "kubernetes_service_account" "alb_controller" {
-
   metadata {
     name      = "aws-load-balancer-controller"
     namespace = "kube-system"
@@ -96,12 +90,10 @@ resource "kubernetes_service_account" "alb_controller" {
 ############################################################
 
 resource "helm_release" "aws_load_balancer_controller" {
-
   name       = "aws-load-balancer-controller"
   repository = "https://aws.github.io/eks-charts"
   chart      = "aws-load-balancer-controller"
-
-  namespace = "kube-system"
+  namespace  = "kube-system"
 
   set {
     name  = "clusterName"
@@ -127,4 +119,9 @@ resource "helm_release" "aws_load_balancer_controller" {
     name  = "vpcId"
     value = data.terraform_remote_state.networking.outputs.vpc_id
   }
+
+  depends_on = [
+    aws_iam_role_policy_attachment.alb_controller,
+    kubernetes_service_account.alb_controller
+  ]
 }
