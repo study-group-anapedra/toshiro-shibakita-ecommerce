@@ -29,6 +29,13 @@ remote_backend_dynamodb_table = "toshiro-ecommerce-prod-tfstate-lock"
 vpc_cidr = "10.10.0.0/16"
 
 # =========================================================
+# DNS / Certificado existente
+# =========================================================
+domain_name         = "asantanadev.com"
+api_domain_name     = "api.asantanadev.com"
+acm_certificate_arn = "arn:aws:acm:us-east-1:365646127398:certificate/63e80d1b-c0cc-402b-a280-409296304096"
+
+# =========================================================
 # Governança (Tags padrão)
 # =========================================================
 tags = {

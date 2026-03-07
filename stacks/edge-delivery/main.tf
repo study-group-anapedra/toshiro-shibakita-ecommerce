@@ -2,37 +2,42 @@
   main.tf (stack 06-edge-delivery)
 
   OBJETIVO:
-  Criar a camada de entrega do frontend estático.
+  Criar a camada de entrega do frontend estático baseada em S3.
 
-  CONTEXTO:
-  - Esta stack cuida do bucket S3 do frontend.
-  - O ALB não é criado aqui.
-  - Em arquitetura com EKS, o balanceador HTTP/HTTPS tende a ser criado
-    dinamicamente pelo AWS Load Balancer Controller a partir de recursos Ingress.
+  PAPEL NA ARQUITETURA:
+  - Provisiona o bucket onde o frontend será publicado
+  - Impede acesso público direto indevido
+  - Habilita versionamento
+  - Habilita criptografia server-side
+  - Define ownership control para evitar conflitos de ACL
 
-  BENEFÍCIOS:
-  - Separação clara entre infraestrutura base e runtime do Kubernetes
-  - Menor acoplamento
-  - Mais aderência ao fluxo moderno com EKS
+  RELAÇÃO COM OUTRAS STACKS:
+  - Usa as variáveis comuns do projeto/ambiente
+  - Pode futuramente conversar com 07-dns-global e com um certificado ACM
+    caso a borda evolua para CloudFront ou outro componente HTTPS
+
+  RECURSOS AWS CONSUMIDOS:
+  - aws_s3_bucket
+  - aws_s3_bucket_public_access_block
+  - aws_s3_bucket_versioning
+  - aws_s3_bucket_server_side_encryption_configuration
+  - aws_s3_bucket_ownership_controls
+
+  RELEVÂNCIA:
+  - Organiza a entrega do frontend de forma segura
+  - Mantém a separação entre frontend estático e runtime do Kubernetes
+  - Prepara a base para evolução futura sem acoplar a stack ao certificado
 */
-
-##################################################
-# S3 - FRONTEND ESTÁTICO
-##################################################
 
 resource "aws_s3_bucket" "frontend" {
   bucket = "${var.project_name}-${var.environment}-frontend-site"
 
   # Em dev permite destruir o bucket com conteúdo;
-  # em prod, exige esvaziar antes para maior segurança.
+  # em prod exige esvaziar antes para maior segurança operacional.
   force_destroy = var.environment == "dev"
 
   tags = var.tags
 }
-
-##################################################
-# BLOQUEIO DE ACESSO PÚBLICO DIRETO
-##################################################
 
 resource "aws_s3_bucket_public_access_block" "frontend" {
   bucket = aws_s3_bucket.frontend.id
@@ -43,10 +48,6 @@ resource "aws_s3_bucket_public_access_block" "frontend" {
   restrict_public_buckets = true
 }
 
-##################################################
-# VERSIONAMENTO
-##################################################
-
 resource "aws_s3_bucket_versioning" "frontend" {
   bucket = aws_s3_bucket.frontend.id
 
@@ -54,10 +55,6 @@ resource "aws_s3_bucket_versioning" "frontend" {
     status = "Enabled"
   }
 }
-
-##################################################
-# CRIPTOGRAFIA SERVER SIDE
-##################################################
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "frontend" {
   bucket = aws_s3_bucket.frontend.id
@@ -68,10 +65,6 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "frontend" {
     }
   }
 }
-
-##################################################
-# CONTROLE DE PROPRIEDADE DOS OBJETOS
-##################################################
 
 resource "aws_s3_bucket_ownership_controls" "frontend" {
   bucket = aws_s3_bucket.frontend.id

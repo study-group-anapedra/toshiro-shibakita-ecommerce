@@ -1,41 +1,71 @@
 /*
   main.tf (stack 07-dns-global)
 
-  DIDÁTICA
-  Cria o certificado ACM do domínio principal e wildcard,
-  e valida automaticamente via Route 53.
+  OBJETIVO:
+  Consumir a Hosted Zone pública já existente e preparar a camada de DNS
+  para apontar subdomínios da aplicação para a borda pública da arquitetura.
+
+  PAPEL NA ARQUITETURA:
+  - Localiza a zona pública do domínio raiz
+  - Mantém referência ao certificado ACM já existente
+  - Publica registros DNS da API
+  - Evita recriação de certificado e nova validação DNS
+
+  RELAÇÃO COM OUTRAS STACKS:
+  - Conversa com a stack 06-edge-delivery ou com o runtime do Kubernetes
+    quando houver um endpoint público para receber tráfego
+  - Usa o domínio gerenciado no Route 53 como ponto central de entrada
+
+  RECURSOS AWS ENVOLVIDOS:
+  - data.aws_route53_zone
+  - data.aws_acm_certificate
+  - aws_route53_record
+
+  RELEVÂNCIA:
+  - Faz a ligação entre domínio público e aplicação
+  - Permite reaproveitar certificado já emitido
+  - Reduz custo operacional e tempo de espera em laboratório
+
+  OBSERVAÇÃO:
+  - Nesta versão, o registro da API está preparado como CNAME temporário
+    para um endpoint externo configurável futuramente.
+  - Quando houver ALB criado pelo Ingress Controller, o ideal é evoluir
+    este arquivo para criar um registro A/ALIAS apontando para o load balancer.
 */
 
-resource "aws_acm_certificate" "wildcard" {
-  domain_name               = var.domain_name
-  subject_alternative_names = ["*.${var.domain_name}"]
-  validation_method         = "DNS"
+##################################################
+# HOSTED ZONE EXISTENTE
+##################################################
 
-  lifecycle {
-    create_before_destroy = true
-  }
-
-  tags = var.tags
+data "aws_route53_zone" "main" {
+  name         = var.domain_name
+  private_zone = false
 }
 
-resource "aws_route53_record" "validation" {
-  for_each = {
-    for dvo in aws_acm_certificate.wildcard.domain_validation_options : dvo.domain_name => {
-      name   = dvo.resource_record_name
-      record = dvo.resource_record_value
-      type   = dvo.resource_record_type
-    }
-  }
+##################################################
+# CERTIFICADO ACM EXISTENTE
+##################################################
 
-  allow_overwrite = true
-  zone_id         = data.aws_route53_zone.main.zone_id
-  name            = each.value.name
-  type            = each.value.type
-  ttl             = 60
-  records         = [each.value.record]
+data "aws_acm_certificate" "main" {
+  arn      = var.acm_certificate_arn
+  statuses = ["ISSUED"]
 }
 
-resource "aws_acm_certificate_validation" "main" {
-  certificate_arn         = aws_acm_certificate.wildcard.arn
-  validation_record_fqdns = [for record in aws_route53_record.validation : record.fqdn]
+##################################################
+# REGISTRO DNS DA API
+##################################################
+# Este registro representa o subdomínio público principal da API.
+# O valor abaixo funciona como placeholder controlado até que a
+# arquitetura publique um endpoint definitivo do ALB/Ingress.
+#
+# Quando o ALB estiver consolidado, a recomendação é trocar este
+# recurso para um registro A/ALIAS apontando diretamente para ele.
+
+resource "aws_route53_record" "api" {
+  zone_id = data.aws_route53_zone.main.zone_id
+  name    = var.api_domain_name
+  type    = "CNAME"
+  ttl     = 300
+
+  records = [var.domain_name]
 }
