@@ -75,13 +75,16 @@ resource "aws_subnet" "public" {
 
   tags = merge(local.common_tags, {
 
-    Name = "${local.name_prefix}-public-${each.key}"
-    Tier = "public"
-    AZ   = each.value
+  Name = "${local.name_prefix}-private-${each.key}"
+  Tier = "private"
+  AZ   = each.value
 
-    "kubernetes.io/role/elb" = "1"
+  "kubernetes.io/role/internal-elb" = "1"
 
-  })
+  # TAG NECESSÁRIA PARA O EKS
+  "kubernetes.io/cluster/${var.project_name}-${var.environment}-cluster" = "shared"
+
+})
 }
 
 

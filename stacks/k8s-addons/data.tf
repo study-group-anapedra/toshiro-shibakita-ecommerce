@@ -1,22 +1,43 @@
 /*
   data.tf (stack 05-k8s-addons)
 
-  FUNÇÃO:
-  - Ler (via remote_state) os outputs do cluster EKS criado na stack 04-compute-eks.
+  OBJETIVO
+  Permitir que esta stack leia informações das stacks anteriores
+  já aplicadas via Terraform Remote State.
 
-  POR QUE:
-  - O provider "kubernetes" precisa do:
-    ✔ endpoint da API do cluster
-    ✔ CA certificate
-    ✔ nome do cluster (para gerar token via aws eks get-token)
+  STACKS UTILIZADAS
+  - 04-compute-eks → fornece dados do cluster Kubernetes
+  - 01-networking  → fornece dados da VPC
 
-  DEPENDE DE:
-  - stack 04-compute-eks ter outputs:
-    cluster_name, cluster_endpoint, cluster_ca_certificate, oidc_provider_arn, oidc_provider_url
+  POR QUE ISSO É NECESSÁRIO
+
+  Os arquivos main.tf e provider.tf usam valores como:
+
+  data.terraform_remote_state.eks.outputs.cluster_name
+  data.terraform_remote_state.eks.outputs.cluster_endpoint
+  data.terraform_remote_state.eks.outputs.cluster_ca_certificate
+  data.terraform_remote_state.eks.outputs.oidc_provider_arn
+  data.terraform_remote_state.eks.outputs.oidc_provider_url
+
+  e
+
+  data.terraform_remote_state.networking.outputs.vpc_id
+
+  Sem este arquivo Terraform não sabe de onde buscar esses outputs
+  e gera o erro:
+
+  Reference to undeclared resource
+  data.terraform_remote_state.eks
 */
 
-data "terraform_remote_state" "compute_eks" {
+############################################################
+# Remote State da stack 04 - compute-eks
+############################################################
+
+data "terraform_remote_state" "eks" {
+
   backend = "s3"
+
   config = {
     bucket = var.remote_backend_bucket_name
     key    = "prod/compute-eks/terraform.tfstate"
@@ -24,11 +45,17 @@ data "terraform_remote_state" "compute_eks" {
   }
 }
 
-locals {
-  cluster_name           = data.terraform_remote_state.compute_eks.outputs.cluster_name
-  cluster_endpoint       = data.terraform_remote_state.compute_eks.outputs.cluster_endpoint
-  cluster_ca_certificate = data.terraform_remote_state.compute_eks.outputs.cluster_ca_certificate
+############################################################
+# Remote State da stack 01 - networking
+############################################################
 
-  oidc_provider_arn = data.terraform_remote_state.compute_eks.outputs.oidc_provider_arn
-  oidc_provider_url = data.terraform_remote_state.compute_eks.outputs.oidc_provider_url
+data "terraform_remote_state" "networking" {
+
+  backend = "s3"
+
+  config = {
+    bucket = var.remote_backend_bucket_name
+    key    = "prod/networking/terraform.tfstate"
+    region = var.aws_region
+  }
 }
