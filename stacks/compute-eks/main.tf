@@ -5,11 +5,19 @@
   - Criar repositórios ECR (um para cada microsserviço)
   - Criar cluster EKS
   - Criar managed node group
+  - Liberar a role do GitHub Actions para administrar o cluster EKS
 
   IMPORTANTE:
-  - Aplicação será deployada depois (outro repositório pode fazer CI/CD separado)
+  - Aplicação será deployada depois
   - Aqui criamos apenas infraestrutura
-  - Corrigido problema de limite 38 caracteres do name_prefix
+  - Esta correção resolve o erro da stack 05-k8s-addons:
+    Unauthorized ao criar namespace/service account via provider kubernetes
+
+  POR QUE RESOLVE?
+  - O cluster estava sendo criado corretamente
+  - Mas a role usada pelo GitHub Actions não tinha permissão dentro do EKS
+  - Então a stack 05 conseguia falar com a AWS, mas não com a API do Kubernetes
+  - Com access_entries, a role do GitHub passa a ter acesso admin no cluster
 */
 
 ##############################
@@ -44,9 +52,46 @@ module "eks" {
   cluster_version = "1.31"
 
   #################################
-  # CORREÇÃO DO ERRO 38 CHARS
+  # Acesso do GitHub Actions ao cluster
   #################################
-  iam_role_use_name_prefix = false
+  /*
+    Esta é a correção principal.
+
+    A stack 05-k8s-addons usa a role do GitHub Actions:
+    arn:aws:iam::365646127398:role/gha-terraform-prod-toshiro-ecommerce
+
+    Sem este bloco, o GitHub consegue criar recursos AWS,
+    mas não consegue acessar a API do Kubernetes no EKS.
+
+    Resultado do erro sem isso:
+    - kubernetes_namespace => Unauthorized
+    - kubernetes_service_account => Unauthorized
+
+    Com este bloco:
+    - a role entra como principal do cluster
+    - recebe política de admin no escopo do cluster inteiro
+    - a stack 05 passa a conseguir instalar o AWS Load Balancer Controller
+  */
+  access_entries = {
+    github_actions = {
+      principal_arn = "arn:aws:iam::365646127398:role/gha-terraform-prod-toshiro-ecommerce"
+
+      policy_associations = {
+        admin = {
+          policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+
+          access_scope = {
+            type = "cluster"
+          }
+        }
+      }
+    }
+  }
+
+  #################################
+  # Correção do erro 38 chars
+  #################################
+  iam_role_use_name_prefix            = false
   cluster_security_group_use_name_prefix = false
   node_security_group_use_name_prefix    = false
 
@@ -66,7 +111,6 @@ module "eks" {
   #################################
   eks_managed_node_groups = {
     dev_nodes = {
-
       iam_role_use_name_prefix = false
 
       min_size     = 1
