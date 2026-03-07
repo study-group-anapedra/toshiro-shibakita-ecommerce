@@ -1,23 +1,29 @@
 /*
-  variables.tf (stack 06-dns-global)
-  FUNÇÃO: Declarar variáveis para o DNS e Certificados.
+  variables.tf (stack 07-dns-global)
+
+  FUNÇÃO
+  Declarar variáveis da stack de DNS e certificados.
 */
 
 variable "project_name" {
-  type = string
+  description = "Nome do projeto"
+  type        = string
 }
 
 variable "environment" {
-  type = string
+  description = "Ambiente da infraestrutura"
+  type        = string
 }
 
 variable "aws_region" {
-  type    = string
-  default = "us-east-1"
+  description = "Região AWS"
+  type        = string
+  default     = "us-east-1"
 }
 
 variable "remote_backend_bucket_name" {
-  type = string
+  description = "Nome do bucket remoto onde ficam os tfstates"
+  type        = string
 }
 
 variable "domain_name" {
@@ -27,6 +33,7 @@ variable "domain_name" {
 }
 
 variable "tags" {
-  type    = map(string)
-  default = {}
+  description = "Tags padrão aplicadas aos recursos"
+  type        = map(string)
+  default     = {}
 }
