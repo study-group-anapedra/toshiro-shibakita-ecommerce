@@ -1,12 +1,13 @@
 /*
-  locals.tf (stack 08-governance)
-  DIDÁTICA: Define regras de retenção e nomes padronizados.
+  locals.tf (stack 09-governance)
+
+  Centraliza nomes padronizados e configurações reutilizáveis
+  da stack de governança.
 */
 
 locals {
-  # Tempo que os logs de auditoria ficarão guardados antes de serem apagados
-  audit_retention_days = 90 
+  audit_retention_days = 90
 
-  # Nome amigável para a trilha de auditoria
-  trail_name = "${var.project_name}-${var.environment}-main-audit"
+  trail_name       = "${var.project_name}-${var.environment}-main-trail"
+  audit_bucket_name = "${var.project_name}-${var.environment}-audit-logs-global"
 }

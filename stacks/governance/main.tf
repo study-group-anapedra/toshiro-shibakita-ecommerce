@@ -1,17 +1,27 @@
 /*
-  main.tf (stack 08-governance)
-  DIDÁTICA: Configura o CloudTrail para monitorar todas as APIs da conta AWS.
+  main.tf (stack 09-governance)
+
+  DIDÁTICA
+  Configura recursos de governança e auditoria da conta AWS.
+
+  RECURSOS PRINCIPAIS
+  - Bucket S3 para armazenar logs de auditoria
+  - Bloqueio de acesso público ao bucket
+  - Versionamento do bucket
+  - Política do bucket para permitir escrita do CloudTrail
+  - CloudTrail multi-region com validação de logs
+
+  OBSERVAÇÃO
+  Esta stack foi alinhada ao padrão enterprise das demais stacks.
 */
 
-# 1. Bucket S3 para os Logs de Auditoria (A 'caixa-preta' do sistema)
 resource "aws_s3_bucket" "audit_logs" {
-  bucket        = "${var.project_name}-${var.environment}-audit-logs-global"
-  force_destroy = true # Em Dev, permite apagar o bucket com logs para facilitar testes.
-  
+  bucket        = local.audit_bucket_name
+  force_destroy = true
+
   tags = var.tags
 }
 
-# 2. Bloqueio de Acesso Público (Segurança Crítica)
 resource "aws_s3_bucket_public_access_block" "audit_logs_block" {
   bucket = aws_s3_bucket.audit_logs.id
 
@@ -21,13 +31,85 @@ resource "aws_s3_bucket_public_access_block" "audit_logs_block" {
   restrict_public_buckets = true
 }
 
-# 3. Configuração do CloudTrail
+resource "aws_s3_bucket_versioning" "audit_logs" {
+  bucket = aws_s3_bucket.audit_logs.id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "audit_logs" {
+  bucket = aws_s3_bucket.audit_logs.id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+data "aws_caller_identity" "current" {}
+
+data "aws_iam_policy_document" "cloudtrail_bucket_policy" {
+  statement {
+    sid    = "AWSCloudTrailAclCheck"
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudtrail.amazonaws.com"]
+    }
+
+    actions = [
+      "s3:GetBucketAcl"
+    ]
+
+    resources = [
+      aws_s3_bucket.audit_logs.arn
+    ]
+  }
+
+  statement {
+    sid    = "AWSCloudTrailWrite"
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudtrail.amazonaws.com"]
+    }
+
+    actions = [
+      "s3:PutObject"
+    ]
+
+    resources = [
+      "${aws_s3_bucket.audit_logs.arn}/AWSLogs/${data.aws_caller_identity.current.account_id}/*"
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "s3:x-amz-acl"
+      values   = ["bucket-owner-full-control"]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "audit_logs" {
+  bucket = aws_s3_bucket.audit_logs.id
+  policy = data.aws_iam_policy_document.cloudtrail_bucket_policy.json
+}
+
 resource "aws_cloudtrail" "main" {
-  name                          = "${var.project_name}-${var.environment}-main-trail"
+  name                          = local.trail_name
   s3_bucket_name                = aws_s3_bucket.audit_logs.id
   include_global_service_events = true
-  is_multi_region_trail         = true # Monitora ações em todas as regiões da AWS.
-  enable_log_file_validation    = true # Garante que ninguém alterou os logs.
+  is_multi_region_trail         = true
+  enable_log_file_validation    = true
 
   tags = var.tags
+
+  depends_on = [
+    aws_s3_bucket_policy.audit_logs
+  ]
 }

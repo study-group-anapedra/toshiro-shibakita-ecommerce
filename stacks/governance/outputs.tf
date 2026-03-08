@@ -1,23 +1,26 @@
 /*
-  main.tf (stack 08-governance)
-  FUNÇÃO: Ativar auditoria global para segurança da plataforma.
+  outputs.tf (stack 09-governance)
+
+  Exporta informações úteis da stack de governança
+  para validação e integrações futuras.
 */
 
-# 1. Bucket S3 para armazenar os registros de auditoria (A 'caixa-preta')
-resource "aws_s3_bucket" "audit_logs" {
-  bucket        = "${var.project_name}-${var.environment}-audit-logs-trail"
-  force_destroy = true # Em Dev, permite apagar o bucket mesmo com logs
-  
-  tags = var.tags
+output "audit_bucket_name" {
+  description = "Nome do bucket S3 que armazena os logs de auditoria."
+  value       = aws_s3_bucket.audit_logs.bucket
 }
 
-# 2. Configuração do CloudTrail
-resource "aws_cloudtrail" "main" {
-  name                          = "${var.project_name}-${var.environment}-main-trail"
-  s3_bucket_name                = aws_s3_bucket.audit_logs.id
-  include_global_service_events = true
-  is_multi_region_trail         = true # Monitora ações em todas as regiões AWS
-  enable_log_file_validation    = true # Garante a integridade dos logs
-  
-  tags = var.tags
+output "audit_bucket_arn" {
+  description = "ARN do bucket S3 de auditoria."
+  value       = aws_s3_bucket.audit_logs.arn
+}
+
+output "cloudtrail_name" {
+  description = "Nome da trilha principal do CloudTrail."
+  value       = aws_cloudtrail.main.name
+}
+
+output "cloudtrail_arn" {
+  description = "ARN da trilha principal do CloudTrail."
+  value       = aws_cloudtrail.main.arn
 }

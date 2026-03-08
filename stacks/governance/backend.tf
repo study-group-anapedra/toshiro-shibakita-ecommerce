@@ -1,19 +1,22 @@
 /*
   backend.tf (stack 09-governance)
 
-  OBJETIVO:
+  OBJETIVO
   Definir onde o Terraform armazenará o state remoto desta stack.
 
-  CORREÇÃO APLICADA:
-  - Ajustado de dev para prod
-  - Ajustado o caminho da key para seguir o padrão do pipeline:
-      prod/governance/terraform.tfstate
+  CONTEXTO
+  A stack 09-governance concentra recursos de auditoria e governança,
+  como CloudTrail e armazenamento seguro dos logs de auditoria.
 
-  IMPORTANTE:
-  - Este arquivo representa o backend padrão da stack.
-  - No GitHub Actions, o terraform init -backend-config pode sobrescrever
-    estes valores dinamicamente.
-  - Mesmo assim, deixar este arquivo coerente evita confusão em execuções locais.
+  PADRÃO DE BACKEND DAS STACKS
+  - Bucket S3 de state remoto
+  - Lock via DynamoDB
+  - Região padronizada em us-east-1
+
+  IMPORTANTE
+  No GitHub Actions, o terraform init pode sobrescrever estes valores com
+  -backend-config, mas manter este arquivo correto evita inconsistências
+  em execuções locais.
 */
 
 terraform {
