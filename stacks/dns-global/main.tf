@@ -29,6 +29,8 @@
   - Portanto ele não deve ser repetido aqui
   - O certificado ACM existente já é recebido por variável
   - Portanto não deve haver data "aws_acm_certificate" neste arquivo
+  - O registro api.asantanadev.com já pode existir manualmente no Route53,
+    por isso allow_overwrite = true evita conflito no apply
 */
 
 ##################################################
@@ -44,6 +46,8 @@ resource "aws_route53_record" "api" {
   name    = var.api_domain_name
   type    = "CNAME"
   ttl     = 300
+
+  allow_overwrite = true
 
   records = [var.domain_name]
 }

@@ -46,6 +46,18 @@ variable "remote_backend_bucket_name" {
   type        = string
 }
 
+variable "remote_backend_dynamodb_table" {
+  description = "Tabela DynamoDB de lock do backend remoto"
+  type        = string
+  default     = ""
+}
+
+variable "vpc_cidr" {
+  description = "CIDR da VPC (variável global reaproveitada do tfvars)"
+  type        = string
+  default     = ""
+}
+
 variable "domain_name" {
   description = "Domínio raiz já existente no Route 53"
   type        = string
