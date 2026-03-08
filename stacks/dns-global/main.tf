@@ -7,7 +7,7 @@
 
   PAPEL NA ARQUITETURA:
   - Reutiliza a hosted zone pública já existente
-  - Reutiliza um certificado ACM já emitido
+  - Reutiliza um certificado ACM já emitido por meio de variável
   - Publica registros DNS necessários para entrada pública da aplicação
   - Mantém esta stack focada apenas na camada DNS
 
@@ -17,7 +17,6 @@
   - Mantém integração com ACM apenas como referência ao certificado existente
 
   RECURSOS AWS ENVOLVIDOS:
-  - data.aws_acm_certificate
   - aws_route53_record
 
   RELEVÂNCIA:
@@ -27,24 +26,18 @@
 
   OBSERVAÇÃO:
   - O data "aws_route53_zone" "main" já existe em data.tf
-  - Por isso ele não deve ser repetido aqui
+  - Portanto ele não deve ser repetido aqui
+  - O certificado ACM existente já é recebido por variável
+  - Portanto não deve haver data "aws_acm_certificate" neste arquivo
 */
-
-##################################################
-# CERTIFICADO ACM EXISTENTE
-##################################################
-
-data "aws_acm_certificate" "main" {
-  arn      = var.acm_certificate_arn
-  statuses = ["ISSUED"]
-}
 
 ##################################################
 # REGISTRO DNS DA API
 ##################################################
 # Este registro representa o subdomínio público principal da API.
 # Neste momento ele está como CNAME temporário.
-# Quando existir um ALB definitivo, o ideal é evoluir para A/ALIAS.
+# Quando existir um endpoint público definitivo, este valor poderá ser
+# evoluído para apontar para o destino correto da aplicação.
 
 resource "aws_route53_record" "api" {
   zone_id = data.aws_route53_zone.main.zone_id
