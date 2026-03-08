@@ -2,12 +2,13 @@
   outputs.tf (stack 08-observability)
 
   Exporta informações úteis da stack para conferência e integrações futuras.
-*/
 
-output "cluster_log_group_name" {
-  description = "Nome do log group principal do cluster EKS."
-  value       = aws_cloudwatch_log_group.eks_cluster.name
-}
+  IMPORTANTE
+  O output do log group principal do cluster EKS foi removido porque
+  o recurso aws_cloudwatch_log_group.eks_cluster não existe mais nesta stack.
+  O EKS pode criar esse log group automaticamente, então manter referência
+  a ele aqui causaria erro de "Reference to undeclared resource".
+*/
 
 output "application_log_group_names" {
   description = "Nomes dos log groups das aplicações."
