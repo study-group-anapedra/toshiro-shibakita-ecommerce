@@ -6,41 +6,29 @@
   para apontar subdomínios da aplicação para a borda pública da arquitetura.
 
   PAPEL NA ARQUITETURA:
-  - Localiza a zona pública do domínio raiz
-  - Mantém referência ao certificado ACM já existente
-  - Publica registros DNS da API
-  - Evita recriação de certificado e nova validação DNS
+  - Reutiliza a hosted zone pública já existente
+  - Reutiliza um certificado ACM já emitido
+  - Publica registros DNS necessários para entrada pública da aplicação
+  - Mantém esta stack focada apenas na camada DNS
 
   RELAÇÃO COM OUTRAS STACKS:
-  - Conversa com a stack 06-edge-delivery ou com o runtime do Kubernetes
-    quando houver um endpoint público para receber tráfego
-  - Usa o domínio gerenciado no Route 53 como ponto central de entrada
+  - Usa a hosted zone localizada em data.tf
+  - Pode consumir outputs da stack edge-delivery quando houver endpoint público
+  - Mantém integração com ACM apenas como referência ao certificado existente
 
   RECURSOS AWS ENVOLVIDOS:
-  - data.aws_route53_zone
   - data.aws_acm_certificate
   - aws_route53_record
 
   RELEVÂNCIA:
-  - Faz a ligação entre domínio público e aplicação
-  - Permite reaproveitar certificado já emitido
-  - Reduz custo operacional e tempo de espera em laboratório
+  - Centraliza a publicação de registros DNS
+  - Evita recriação desnecessária de certificado
+  - Deixa a responsabilidade de busca de dados separada da criação de recursos
 
   OBSERVAÇÃO:
-  - Nesta versão, o registro da API está preparado como CNAME temporário
-    para um endpoint externo configurável futuramente.
-  - Quando houver ALB criado pelo Ingress Controller, o ideal é evoluir
-    este arquivo para criar um registro A/ALIAS apontando para o load balancer.
+  - O data "aws_route53_zone" "main" já existe em data.tf
+  - Por isso ele não deve ser repetido aqui
 */
-
-##################################################
-# HOSTED ZONE EXISTENTE
-##################################################
-
-data "aws_route53_zone" "main" {
-  name         = var.domain_name
-  private_zone = false
-}
 
 ##################################################
 # CERTIFICADO ACM EXISTENTE
@@ -55,11 +43,8 @@ data "aws_acm_certificate" "main" {
 # REGISTRO DNS DA API
 ##################################################
 # Este registro representa o subdomínio público principal da API.
-# O valor abaixo funciona como placeholder controlado até que a
-# arquitetura publique um endpoint definitivo do ALB/Ingress.
-#
-# Quando o ALB estiver consolidado, a recomendação é trocar este
-# recurso para um registro A/ALIAS apontando diretamente para ele.
+# Neste momento ele está como CNAME temporário.
+# Quando existir um ALB definitivo, o ideal é evoluir para A/ALIAS.
 
 resource "aws_route53_record" "api" {
   zone_id = data.aws_route53_zone.main.zone_id
