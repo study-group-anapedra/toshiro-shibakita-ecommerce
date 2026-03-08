@@ -1,23 +1,6 @@
-/*
-  main.tf (stack 09-governance)
-
-  DIDÁTICA
-  Configura recursos de governança e auditoria da conta AWS.
-
-  RECURSOS PRINCIPAIS
-  - Bucket S3 para armazenar logs de auditoria
-  - Bloqueio de acesso público ao bucket
-  - Versionamento do bucket
-  - Política do bucket para permitir escrita do CloudTrail
-  - CloudTrail multi-region com validação de logs
-
-  OBSERVAÇÃO
-  Esta stack foi alinhada ao padrão enterprise das demais stacks.
-*/
-
 resource "aws_s3_bucket" "audit_logs" {
   bucket        = local.audit_bucket_name
-  force_destroy = true
+  force_destroy = false
 
   tags = var.tags
 }
@@ -106,6 +89,7 @@ resource "aws_cloudtrail" "main" {
   include_global_service_events = true
   is_multi_region_trail         = true
   enable_log_file_validation    = true
+  enable_logging                = true
 
   tags = var.tags
 

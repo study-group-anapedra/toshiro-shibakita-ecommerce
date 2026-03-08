@@ -5,7 +5,7 @@
   Define os parâmetros de entrada da stack de governança.
 
   OBSERVAÇÃO
-  Algumas variáveis extras podem vir do prod.tfvars global.
+  Algumas variáveis extras vêm do prod.tfvars global.
   Declará-las aqui evita warnings quando o mesmo tfvars é reutilizado
   entre múltiplas stacks.
 */
@@ -26,15 +26,33 @@ variable "aws_region" {
   default     = "us-east-1"
 }
 
-variable "tags" {
-  type        = map(string)
-  description = "Tags padrão aplicadas aos recursos."
-  default     = {}
+variable "remote_backend_bucket_name" {
+  type        = string
+  description = "Nome do bucket S3 do backend remoto."
+  default     = ""
+}
+
+variable "remote_backend_dynamodb_table" {
+  type        = string
+  description = "Tabela DynamoDB de lock do backend remoto."
+  default     = ""
+}
+
+variable "vpc_cidr" {
+  type        = string
+  description = "CIDR da VPC."
+  default     = ""
 }
 
 variable "domain_name" {
   type        = string
   description = "Domínio principal do projeto."
+  default     = ""
+}
+
+variable "api_domain_name" {
+  type        = string
+  description = "Domínio público da API."
   default     = ""
 }
 
@@ -54,4 +72,10 @@ variable "oidc_provider_arn" {
   type        = string
   description = "ARN do provider OIDC do EKS."
   default     = ""
+}
+
+variable "tags" {
+  type        = map(string)
+  description = "Tags padrão aplicadas aos recursos."
+  default     = {}
 }

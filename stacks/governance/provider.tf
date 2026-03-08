@@ -7,7 +7,7 @@
 
   Portanto:
   - mantemos apenas a região
-  - removemos profile = "terraform-dev"
+  - removemos qualquer profile local
 */
 
 provider "aws" {
